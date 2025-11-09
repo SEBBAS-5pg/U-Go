@@ -13,6 +13,7 @@ type Config struct {
 	DatabaseURL string
 	Port        string
 	MongoURI    string
+	JWTSecret   string
 }
 
 // LoadConfig carga la configuracion desde un archivo .env
@@ -28,6 +29,7 @@ func LoadConfig() (*Config, error) {
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		Port:        os.Getenv("PORT"),
 		MongoURI:    os.Getenv("MONGO_URI"),
+		JWTSecret:   os.Getenv("JWT_SECRET"),
 	}
 	// Valores por defecto
 	if cfg.Port == "" {
@@ -35,6 +37,9 @@ func LoadConfig() (*Config, error) {
 	}
 	if cfg.DatabaseURL == "" {
 		log.Fatal("DATABASE_URL is not set")
+	}
+	if cfg.JWTSecret == "" {
+		log.Fatal("JWT_SECRET is not set")
 	}
 
 	return cfg, nil

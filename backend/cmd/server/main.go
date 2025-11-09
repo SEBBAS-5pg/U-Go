@@ -44,25 +44,25 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 
 	// b. "cerebro" (service) - Necesia el repository
-	authService := service.NewAuthService(userRepo)
+	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
 
 	// c. "mesero" (handler) - necesita el service
 	authHandler := *api.NewAuthHandler(authService)
 
 	// configurar el router y rutas (Gorilla Mux)
 	router := mux.NewRouter()
-
 	// Definir un sub-router para /api/v1
 	apiV1 := router.PathPrefix("/api/v1").Subrouter()
 
 	// --- Endpoints de U-Go ---
 	apiV1.HandleFunc("/health", healthHandler).Methods("GET")
-
 	// --- Endpoint de Registro (HU-01) ---
 	// Conecta la ruta POST /auth/register con la función authHandler.Register
 	apiV1.HandleFunc("/auth/register", authHandler.Register).Methods("POST")
 
-	// (Aquí irán los otros endpoints: /auth/login, /vehicles, etc.)
+	// Ruta Login (T-08)
+	apiV1.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
+	// (Aquí irán los otros endpoints: /vehicles, etc.)
 	// ...
 
 	// Middlewares (cors + json)

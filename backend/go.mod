@@ -3,6 +3,7 @@ module github.com/SEBBAS-5pg/U-Go/backend
 go 1.24.5
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
