@@ -17,6 +17,7 @@ import (
 type AuthMiddleware struct {
 	jwtSecret string
 }
+
 // NewAuthMiddleware es la "fabrica" para nuestro middleware
 func NewAuthMiddleware(jwtSecret string) *AuthMiddleware {
 	return &AuthMiddleware{jwtSecret: jwtSecret}
