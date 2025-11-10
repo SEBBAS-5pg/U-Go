@@ -103,3 +103,44 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 
 	return user, nil
 }
+
+func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, error) {
+	query := `
+	SELECT
+	id, email, full_name, password_hash, is_active, activation_token,
+			is_driver, driver_status, profile_image_url, average_rating, created_at
+		FROM users
+		WHERE id = $1
+	`
+	ctxTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	user := &models.User{}
+
+	err := r.db.QueryRowContext(ctxTimeout, query, id).Scan(
+		&user.ID,
+		&user.Email,
+		&user.FullName,
+		&user.PasswordHash,
+		&user.IsActive,
+		&user.ActivationToken,
+		&user.IsDriver,
+		&user.DriverStatus,
+		&user.ProfileImageURL,
+		&user.AverageRating,
+		&user.CreatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
+		log.Printf("Error scanning user by ID: %v", err)
+		return nil, err
+	}
+	// se limpian los datos sostenibles antes de devolverlos
+	user.PasswordHash = ""
+	user.ActivationToken = nil
+
+	return user, nil
+}

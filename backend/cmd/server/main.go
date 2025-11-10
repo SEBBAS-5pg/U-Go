@@ -37,15 +37,25 @@ func main() {
 	}
 	log.Println("✅ Successful connection to Postgres (ugo_develop_db).")
 
-	// -- Inyeccion de Dependencias (DI)
-	// Conectar en el orden correcto:
+	// -- Inyeccion de Dependencias (DI) ---
 
+	// (REPOSITORIOS)
 	// a. "musculo" (repository) - (necesita la BD)
 	userRepo := repository.NewUserRepository(db)
+
+	//(SERVICIOS)
 	// b. "cerebro" (service) - Necesia el repository
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
+	userService := service.NewUserService(userRepo)
+
+	//(HANDLER)
 	// c. "mesero" (handler) - necesita el service
-	authHandler := *api.NewAuthHandler(authService)
+	authHandler := api.NewAuthHandler(authService)
+	userHandler := api.NewUserHandler(userService)
+
+	//(MIDDLEWARE)
+	// d. "Guardian de seguridad"
+	authMiddleware := api.NewAuthMiddleware(cfg.JWTSecret)
 
 	// configurar el router y rutas (Gorilla Mux)
 	router := mux.NewRouter()
@@ -56,6 +66,7 @@ func main() {
 	apiV1.Use(jsonContentTypeMiddleware)
 	apiV1.Use(enableCORS)
 
+	// -- Rutas Publicas (AUTENTIFICACION) ---
 	// --- Endpoints de U-Go ---
 	apiV1.HandleFunc("/health", healthHandler).Methods("GET")
 	// --- Endpoint de Registro (HU-01) ---
@@ -64,6 +75,17 @@ func main() {
 	// Ruta Login (T-08)
 	apiV1.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
 	// (Aquí irán los otros endpoints: /vehicles, etc.)
+
+	// -- Rutas Protegidas (REQUIERE TOKEN JWT) ---
+
+	// se crea un sub-router separado para las rutas protegidas
+	protectRoutes := apiV1.PathPrefix("").Subrouter()
+	protectRoutes.Use(authMiddleware.Middleware) // se aplica el guardia
+
+	// GET /api/v1/users/me
+	protectRoutes.HandleFunc("/users/me", userHandler.GetMyProfile).Methods("GET")
+
+	// (iran las otras rutas protegidas)
 	// ...
 
 	// Middlewares (cors + json)

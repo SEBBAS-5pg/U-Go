@@ -18,6 +18,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Define un tipo personalizado para nuestra llave de contexto
+type contextKey string
+
+// Esta es la llave que usa para guardar/leer el userID del contexto
+const ContextKeyUserID contextKey = "userID"
+
 // AuthService es el "cerebro" que maneja la logica de negocio de autentificacion
 type AuthService struct {
 	userRepo *repository.UserRepository

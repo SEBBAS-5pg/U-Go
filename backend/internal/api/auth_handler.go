@@ -100,7 +100,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // Funcion de ayuda (helper) para escribir JSON
 
 // WriteJSONResponse es una funcion simple para estandarizar las respuestas JSON
-func writeJSONResponse(w http.ResponseWriter, status int, data interface{}) {
+func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Contebt-Type", "application/json")
 	w.WriteHeader(status)
 	if data != nil {
