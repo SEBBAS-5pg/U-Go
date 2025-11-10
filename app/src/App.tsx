@@ -1,3 +1,5 @@
+// Ruta: /app/src/App.tsx
+
 import { Redirect, Route } from 'react-router-dom';
 import {
   IonApp,
@@ -11,51 +13,35 @@ import {
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 
-// Iconos que ya estabas usando
+// Iconos
 import { ellipse, square, triangle } from 'ionicons/icons';
 
-// Páginas de Tabs que ya tenías
+// Páginas de Tabs
 import Tab1 from './pages/Tab1';
 import Tab2 from './pages/Tab2';
 import Tab3 from './pages/Tab3';
 
-// --- (1) IMPORTAR LA NUEVA PÁGINA ---
-import LoginPage from './pages/LoginPage'; // ¡Importante!
+// --- (Importamos AMBAS páginas de autenticación) ---
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage'; // <-- (1) LÍNEA NUEVA
 
 /* ... (Todos los imports de CSS se quedan igual) ... */
-/* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
-
-/* Basic CSS for apps built with Ionic */
 import '@ionic/react/css/normalize.css';
 import '@ionic/react/css/structure.css';
 import '@ionic/react/css/typography.css';
-
-/* Optional CSS utils that can be commented out */
 import '@ionic/react/css/padding.css';
 import '@ionic/react/css/float-elements.css';
 import '@ionic/react/css/text-alignment.css';
 import '@ionic/react/css/text-transformation.css';
 import '@ionic/react/css/flex-utils.css';
 import '@ionic/react/css/display.css';
-
-/**
- * Ionic Dark Mode
- * -----------------------------------------------------
- */
-/*
 import '@ionic/react/css/palettes/dark.system.css';
-*/
-
-/* Theme variables */
 import './theme/variables.css';
 
 setupIonicReact();
 
-/* --- (2) EXTRAER LAS TABS A SU PROPIO COMPONENTE ---
-   El contenido de tu App.tsx (las pestañas) ahora vivirá aquí.
-   Lo ponemos en el mismo archivo para no crear más archivos.
-*/
+/* --- (Componente de Tabs, sin cambios) --- */
 const MainTabs: React.FC = () => {
   return (
     <IonTabs>
@@ -69,13 +55,11 @@ const MainTabs: React.FC = () => {
         <Route path="/tabs/tab3">
           <Tab3 />
         </Route>
-        {/* Redirección por defecto DENTRO de las tabs */}
         <Route exact path="/tabs">
           <Redirect to="/tabs/tab1" />
         </Route>
       </IonRouterOutlet>
       
-      {/* Esta es la barra de pestañas de abajo */}
       <IonTabBar slot="bottom">
         <IonTabButton tab="tab1" href="/tabs/tab1">
           <IonIcon aria-hidden="true" icon={triangle} />
@@ -94,15 +78,10 @@ const MainTabs: React.FC = () => {
   );
 };
 
-/* --- (3) MODIFICAR EL ROUTER PRINCIPAL (App) ---
-   Este es el nuevo componente App.
-   Ahora es un "router" principal que decide si mostrar
-   el Login o las Tabs.
-*/
+/* --- (Router Principal, con la ruta NUEVA) --- */
 const App: React.FC = () => (
   <IonApp>
     <IonReactRouter>
-      {/* El IonRouterOutlet principal maneja todas las rutas */}
       <IonRouterOutlet>
         
         {/* Ruta para el Login */}
@@ -110,12 +89,15 @@ const App: React.FC = () => (
           <LoginPage />
         </Route>
         
+        {/* --- (2) RUTA NUEVA --- */}
+        <Route exact path="/register">
+          <RegisterPage />
+        </Route>
+        
         {/* Ruta para el resto de la app (las Tabs) */}
-        {/* Si la URL empieza con /tabs, carga el componente MainTabs */}
         <Route path="/tabs" component={MainTabs} />
         
-        {/* Redirección por defecto de la App */}
-        {/* Ahora, / (la raíz) te manda a /login, no a /tab1 */}
+        {/* Redirección por defecto de la App (sigue siendo /login) */}
         <Route exact path="/">
           <Redirect to="/login" />
         </Route>

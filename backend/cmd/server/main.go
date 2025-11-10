@@ -42,10 +42,8 @@ func main() {
 
 	// a. "musculo" (repository) - (necesita la BD)
 	userRepo := repository.NewUserRepository(db)
-
 	// b. "cerebro" (service) - Necesia el repository
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
-
 	// c. "mesero" (handler) - necesita el service
 	authHandler := *api.NewAuthHandler(authService)
 
@@ -54,12 +52,15 @@ func main() {
 	// Definir un sub-router para /api/v1
 	apiV1 := router.PathPrefix("/api/v1").Subrouter()
 
+	// Midlewares Directos al sub-router apiV1
+	apiV1.Use(jsonContentTypeMiddleware)
+	apiV1.Use(enableCORS)
+
 	// --- Endpoints de U-Go ---
 	apiV1.HandleFunc("/health", healthHandler).Methods("GET")
 	// --- Endpoint de Registro (HU-01) ---
 	// Conecta la ruta POST /auth/register con la función authHandler.Register
 	apiV1.HandleFunc("/auth/register", authHandler.Register).Methods("POST")
-
 	// Ruta Login (T-08)
 	apiV1.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
 	// (Aquí irán los otros endpoints: /vehicles, etc.)
@@ -79,6 +80,14 @@ func main() {
 // =============================
 // ⚙️ Middlewares (Moveremos esto luego)
 // =============================
+
+func jsonContentTypeMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -90,13 +99,6 @@ func enableCORS(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func jsonContentTypeMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
 		next.ServeHTTP(w, r)
 	})
 }
