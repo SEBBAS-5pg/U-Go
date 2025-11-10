@@ -1,10 +1,16 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
+
+	// --- Drivers de DB ---
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	// --- Tu Stack ---
 	"github.com/gorilla/mux"
@@ -37,6 +43,24 @@ func main() {
 	}
 	log.Println("✅ Successful connection to Postgres (ugo_develop_db).")
 
+	// --- Conectar a MongoDB ---
+	ctxMongo, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	mongoClient, err := mongo.Connect(ctxMongo, options.Client().ApplyURI(cfg.MongoURI))
+	if err != nil {
+		log.Fatal("Error connecting to MongoDB:", err)
+	}
+
+	// Ping a MongoDB
+	if err := mongoClient.Ping(ctxMongo, nil); err != nil {
+		log.Fatal("Error (Ping) connecting to MongoDB:", err)
+	}
+
+	// Asignar la base de datos específica
+	mongoDB := mongoClient.Database("ugo_mongo_db")
+	log.Println("✅ Successful connection to MongoDB (ugo_mongo_db).")
+
 	// -- Inyeccion de Dependencias (DI) ---
 
 	// (REPOSITORIOS)
@@ -46,7 +70,8 @@ func main() {
 	//(SERVICIOS)
 	// b. "cerebro" (service) - Necesia el repository
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
-	userService := service.NewUserService(userRepo)
+	storageService := service.NewStorageService(mongoDB)
+	userService := service.NewUserService(userRepo, storageService)
 
 	//(HANDLER)
 	// c. "mesero" (handler) - necesita el service
@@ -84,6 +109,10 @@ func main() {
 
 	// GET /api/v1/users/me
 	protectRoutes.HandleFunc("/users/me", userHandler.GetMyProfile).Methods("GET")
+	// PUT /users/me
+	protectRoutes.HandleFunc("/users/me", userHandler.UpdateMyProfile).Methods("PUT")
+	// POST Imagen
+	protectRoutes.HandleFunc("/users/me/image", userHandler.UploadProfileImage).Methods("POST")
 
 	// (iran las otras rutas protegidas)
 	// ...
@@ -95,8 +124,6 @@ func main() {
 	log.Printf("✅ Servidor U-Go (Go) corriendo en http://localhost:%s\n", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, enhancedRouter))
 
-	// (Aquí conectaríamos a Mongo también)
-	// ...
 }
 
 // =============================

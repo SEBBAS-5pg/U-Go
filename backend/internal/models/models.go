@@ -8,15 +8,15 @@ import (
 type User struct {
 	ID              string    `json:"id"`
 	Email           string    `json:"email"`
-	FullName        string    `json:"fullName"`
+	FullName        string    `json:"full_name"`
 	PasswordHash    string    `json:"-"` // Ocultar en JSON
-	IsActive        bool      `json:"isActive"`
+	IsActive        bool      `json:"is_active"`
 	ActivationToken *string   `json:"-"` // Ocultar en JSON
-	IsDriver        bool      `json:"isDriver"`
-	DriverStatus    string    `json:"driverStatus"`    // 'offline', 'online', 'en_viaje'
-	ProfileImageURL *string   `json:"profileImageUrl"` // Puntero para NULOS
-	AverageRating   float64   `json:"averageRating"`
-	CreatedAt       time.Time `json:"createdAt"`
+	IsDriver        bool      `json:"is_driver"`
+	DriverStatus    string    `json:"driver_status"`     // 'offline', 'online', 'en_viaje'
+	ProfileImageURL *string   `json:"profile_image_url"` // Puntero para NULOS
+	AverageRating   float64   `json:"average_rating"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 // Vehicle (Vehículo) coincide con la tabla 'vehicles'
@@ -56,4 +56,8 @@ type Rating struct {
 	Rating    int       `json:"rating"`
 	Comment   *string   `json:"comment"`
 	CreatedAt time.Time `json:"createdAt"`
+}
+
+type UpdateUserRequest struct {
+	FullName string `json:"full_name"`
 }

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"time"
 
@@ -143,4 +144,78 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, 
 	user.ActivationToken = nil
 
 	return user, nil
+}
+
+func (r *UserRepository) UpdateUser(ctx context.Context, userID string, req *models.UpdateUserRequest) (*models.User, error) {
+	query := `
+		UPDATE users
+		SET 
+			full_name = $1,
+			updated_at = now()
+		WHERE 
+			id = $2
+		RETURNING 
+			id, email, full_name, password_hash, is_active, activation_token,
+			is_driver, driver_status, profile_image_url, average_rating, created_at
+	`
+	ctxTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	user := &models.User{}
+
+	err := r.db.QueryRowContext(ctxTimeout, query, req.FullName, userID).Scan(
+		&user.ID,
+		&user.Email,
+		&user.FullName,
+		&user.PasswordHash,
+		&user.IsActive,
+		&user.ActivationToken,
+		&user.IsDriver,
+		&user.DriverStatus,
+		&user.ProfileImageURL,
+		&user.AverageRating,
+		&user.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("User not found to update")
+		}
+		log.Printf("Error scanning updated user (repo): %v", err)
+		return nil, err
+	}
+
+	// Limpia datos sensibles antes de devolver
+	user.PasswordHash = ""
+	user.ActivationToken = nil
+
+	return user, nil
+}
+
+// UpdateProfileImageURL actualiza solo la columna profile_image_url
+func (r *UserRepository) UpdateProfileImageURL(ctx context.Context, userID string, imageURL string) error {
+	query := `
+		UPDATE users
+		SET 
+			profile_image_url = $1
+		WHERE 
+			id = $2
+	`
+	ctxTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	result, err := r.db.ExecContext(ctxTimeout, query, imageURL, userID)
+	if err != nil {
+		log.Printf("Error al actualizar profile_image_url (repo): %v", err)
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows // El usuario no fue encontrado
+	}
+
+	return nil
 }
