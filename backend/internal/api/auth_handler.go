@@ -66,7 +66,7 @@ type LoginRequest struct {
 
 // LoginResponse es el struct del JSON que devolveremos
 type LoginResponse struct {
-	Token string `json:"token`
+	Token string `json:"token"`
 }
 
 // Login es la funcion que se conectara a la ruta POST /api/v1/auth/login
@@ -101,7 +101,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 // WriteJSONResponse es una funcion simple para estandarizar las respuestas JSON
 func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Contebt-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if data != nil {
 		if err := json.NewEncoder(w).Encode(data); err != nil {
