@@ -61,3 +61,30 @@ type Rating struct {
 type UpdateUserRequest struct {
 	FullName string `json:"full_name"`
 }
+
+type ContextKey string
+
+const ContextUserIDKey ContextKey = "userID"
+
+// --- Modelos Geoespaciales y de Geolocalización (HU-08) ---
+
+// GeoJson representa el formato GeoJSON Point [longitud, latitud]
+type GeoJson struct {
+	Type        string    `json:"type" bson:"type"`
+	Coordinates []float64 `json:"coordinates" bson:"coordinates"`
+}
+
+// DriverLocation representa el documento que se guardará en MongoDB
+type DriverLocation struct {
+	UserID    string    `json:"user_id" bson:"userid"`
+	Status    string    `json:"status" bson:"status"`
+	Location  GeoJson   `json:"location" bson:"location"`
+	UpdatedAt time.Time `json:"updated_at" bson:"updatedat"`
+}
+
+// UpdateLocationRequest define la estructura esperada del JSON de entrada para la ubicación
+type UpdateLocationRequest struct {
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Status    string  `json:"status"` // ej: "online", "offline"
+}

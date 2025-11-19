@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -12,16 +13,23 @@ import (
 )
 
 // UserService maneja la logica de negocio para los perfiles de usuario
+// UserService maneja la lógica de negocio para los usuarios
 type UserService struct {
-	userRepo    *repository.UserRepository
-	storageRepo *StorageService
+	userRepo     *repository.UserRepository
+	locationRepo *repository.LocationRepository
+	storageRepo  *StorageService
 }
 
-// NewUserService es la "fabrica"
-func NewUserService(userRepo *repository.UserRepository, storageRepo *StorageService) *UserService {
+// NewUserService es la "fábrica"
+func NewUserService(
+	userRepo *repository.UserRepository,
+	locationRepo *repository.LocationRepository,
+	storageRepo *StorageService, // ¡Ahora recibe 3 argumentos!
+) *UserService {
 	return &UserService{
-		userRepo:    userRepo,
-		storageRepo: storageRepo,
+		userRepo:     userRepo,
+		locationRepo: locationRepo,
+		storageRepo:  storageRepo, // Asignación correcta
 	}
 }
 
@@ -89,4 +97,35 @@ func (s *UserService) UpdateUserProfileImage(ctx context.Context, userID string,
 
 	// 5. Devolver la URL/ID
 	return imageURL, nil
+}
+
+// UpdateDriverStatusAndLocation maneja la actualización del estado (Postgres) y la geolocalización (Mongo)
+func (s *UserService) UpdateDriverStatusAndLocation(ctx context.Context, userID string, req models.UpdateLocationRequest) error {
+
+	// 1. Validar la solicitud
+	if userID == "" {
+		return errors.New("ID de conductor no proporcionado")
+	}
+	if req.Status == "" || (req.Status != "online" && req.Status != "offline") {
+		return errors.New("Estado (status) inválido. Debe ser 'online' o 'offline'")
+	}
+
+	// 2. Actualizar el estado del conductor en PostgreSQL
+	err := s.userRepo.UpdateDriverStatus(ctx, userID, req.Status)
+	if err != nil {
+		log.Printf("Error al actualizar el estado del conductor en DB (Postgres): %v", err)
+		if err == sql.ErrNoRows {
+			return errors.New("Conductor no encontrado")
+		}
+		return errors.New("No se pudo actualizar el estado del conductor")
+	}
+
+	// 3. Actualizar la geolocalización en MongoDB
+	err = s.locationRepo.UpsertDriverLocation(ctx, userID, req.Latitude, req.Longitude, req.Status)
+	if err != nil {
+		log.Printf("Error al actualizar la ubicación en MongoDB: %v", err)
+		return errors.New("No se pudo registrar la ubicación del conductor")
+	}
+
+	return nil
 }

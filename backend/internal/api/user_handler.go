@@ -117,3 +117,27 @@ func (h *UserHandler) UploadProfileImage(w http.ResponseWriter, r *http.Request)
 	// 5. Éxito
 	writeJSONResponse(w, http.StatusOK, map[string]string{"profile_image_url": imageURL})
 }
+
+// GetVehicles maneja el [GET] /api/v1/vehicles
+func (h *VehicleHandler) GetVehicles(w http.ResponseWriter, r *http.Request) {
+
+	// 1. Obtener el ConductorID del contexto
+	conductorID, ok := r.Context().Value(models.ContextUserIDKey).(string)
+	if !ok || conductorID == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "No autorizado o ID de conductor no encontrado"})
+		return
+	}
+
+	// 2. Llamar al servicio
+	vehicles, err := h.vehicleService.GetVehiclesByConductor(r.Context(), conductorID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	// 3. Devolver la respuesta de éxito
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(vehicles)
+}

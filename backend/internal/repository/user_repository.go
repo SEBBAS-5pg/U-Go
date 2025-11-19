@@ -219,3 +219,30 @@ func (r *UserRepository) UpdateProfileImageURL(ctx context.Context, userID strin
 
 	return nil
 }
+
+// UpdateDriverStatus actualiza el campo driver_status de un usuario en PostgreSQL
+func (r *UserRepository) UpdateDriverStatus(ctx context.Context, userID string, status string) error {
+	query := `
+        UPDATE users
+        SET 
+            driver_status = $1::driver_status, -- <<-- ¡CORRECCIÓN CLAVE! Hacemos CAST explícito al tipo ENUM
+            is_active = ($1 = 'online') 
+        WHERE id = $2
+    `
+
+	result, err := r.db.ExecContext(ctx, query, status, userID)
+	if err != nil {
+		log.Printf("Error al actualizar driver_status en DB: %v", err)
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows // Retornar error si el usuario no fue encontrado
+	}
+
+	return nil
+}

@@ -66,17 +66,22 @@ func main() {
 	// (REPOSITORIOS)
 	// a. "musculo" (repository) - (necesita la BD)
 	userRepo := repository.NewUserRepository(db)
+	vehicleRepo := repository.NewVehicleRepository(db)
+	locationRepo := repository.NewLocationRepository(mongoDB)
 
 	//(SERVICIOS)
 	// b. "cerebro" (service) - Necesia el repository
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
 	storageService := service.NewStorageService(mongoDB)
-	userService := service.NewUserService(userRepo, storageService)
+	userService := service.NewUserService(userRepo, locationRepo, storageService)
+	vehicleService := service.NewVehicleService(vehicleRepo, storageService)
 
 	//(HANDLER)
 	// c. "mesero" (handler) - necesita el service
 	authHandler := api.NewAuthHandler(authService)
 	userHandler := api.NewUserHandler(userService)
+	vehicleHandler := api.NewVehicleHandler(vehicleService)
+	driverHandler := api.NewDriverHandler(userService)
 
 	//(MIDDLEWARE)
 	// d. "Guardian de seguridad"
@@ -113,7 +118,13 @@ func main() {
 	protectRoutes.HandleFunc("/users/me", userHandler.UpdateMyProfile).Methods("PUT")
 	// POST Imagen
 	protectRoutes.HandleFunc("/users/me/image", userHandler.UploadProfileImage).Methods("POST")
-
+	// POST de Vehiculos
+	protectRoutes.HandleFunc("/vehicles", vehicleHandler.RegisterVehicle).Methods("POST")
+	// GET /api/v1/vehicles
+	protectRoutes.HandleFunc("/vehicles", vehicleHandler.GetVehicles).Methods("GET")
+	protectRoutes.HandleFunc("/driver/location", driverHandler.UpdateLocation).Methods("POST")
+	// POST /api/v1/vehicles/{vehicleId}/image
+	protectRoutes.HandleFunc("/vehicles/{vehicleId}/image", vehicleHandler.UploadVehicleImage).Methods("POST")
 	// (iran las otras rutas protegidas)
 	// ...
 

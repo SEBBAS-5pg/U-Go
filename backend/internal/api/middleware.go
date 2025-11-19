@@ -10,7 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/SEBBAS-5pg/U-Go/backend/internal/service"
+	"github.com/SEBBAS-5pg/U-Go/backend/internal/models"
 )
 
 // AuthMiddleware es el struct que "sostiene" el secret
@@ -69,8 +69,7 @@ func (m *AuthMiddleware) Middleware(next http.Handler) http.Handler {
 		}
 		// Inyecta el ID del usuario en el contexto de la peticion
 		// para que el siguiente handler (GetMyProfiile) pueda usarlo.
-		ctx := context.WithValue(r.Context(), service.ContextKeyUserID, userID)
-
+		ctx := context.WithValue(r.Context(), models.ContextUserIDKey, userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 
 	})
