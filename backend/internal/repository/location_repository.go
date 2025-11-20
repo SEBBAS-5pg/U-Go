@@ -67,3 +67,44 @@ func (r *LocationRepository) UpsertDriverLocation(ctx context.Context, userID st
 
 	return nil
 }
+
+// FindNearbyDrivers busca conductores online dentro de un radio (en metros) de un punto
+func (r *LocationRepository) FindNearbyDrivers(ctx context.Context, latitude float64, longitude float64, maxDistanceMeters int) ([]models.DriverLocation, error) {
+
+	// 1. Definir el punto de búsqueda (Pasajero)
+	centerPoint := models.GeoJson{
+		Type:        "Point",
+		Coordinates: []float64{longitude, latitude}, // MongoDB usa [longitud, latitud]
+	}
+
+	// 2. Definir los criterios de búsqueda ($geoNear)
+	// El $geoNear requiere que el índice '2dsphere' exista, lo cual ya configuramos en UpsertDriverLocation.
+	pipeline := []bson.M{
+		{
+			"$geoNear": bson.M{
+				"near":          centerPoint,                // Punto central de la búsqueda (Pasajero)
+				"distanceField": "distance",                 // Nombre del nuevo campo que contendrá la distancia al conductor
+				"maxDistance":   maxDistanceMeters,          // Radio máximo en metros
+				"spherical":     true,                       // Indica que la distancia es calculada en una esfera (Tierra)
+				"query":         bson.M{"status": "online"}, // ¡Solo buscar conductores con status: "online"!
+			},
+		},
+	}
+
+	// 3. Ejecutar la agregación
+	cursor, err := r.Collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		log.Printf("Error al ejecutar $geoNear en MongoDB: %v", err)
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	// 4. Decodificar los resultados
+	var drivers []models.DriverLocation
+	if err = cursor.All(ctx, &drivers); err != nil {
+		log.Printf("Error al decodificar resultados de $geoNear: %v", err)
+		return nil, err
+	}
+
+	return drivers, nil
+}

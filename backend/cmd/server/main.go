@@ -82,6 +82,7 @@ func main() {
 	userHandler := api.NewUserHandler(userService)
 	vehicleHandler := api.NewVehicleHandler(vehicleService)
 	driverHandler := api.NewDriverHandler(userService)
+	passengerHandler := api.NewPassengerHandler(userService)
 
 	//(MIDDLEWARE)
 	// d. "Guardian de seguridad"
@@ -121,10 +122,16 @@ func main() {
 	// POST de Vehiculos
 	protectRoutes.HandleFunc("/vehicles", vehicleHandler.RegisterVehicle).Methods("POST")
 	// GET /api/v1/vehicles
+
+	// vehicles
 	protectRoutes.HandleFunc("/vehicles", vehicleHandler.GetVehicles).Methods("GET")
 	protectRoutes.HandleFunc("/driver/location", driverHandler.UpdateLocation).Methods("POST")
+	// GET /
+	protectRoutes.HandleFunc("/passenger/drivers", passengerHandler.FindNearbyDrivers).Methods("GET").Queries("lat", "{lat}", "lng", "{lng}")
+
 	// POST /api/v1/vehicles/{vehicleId}/image
 	protectRoutes.HandleFunc("/vehicles/{vehicleId}/image", vehicleHandler.UploadVehicleImage).Methods("POST")
+
 	// (iran las otras rutas protegidas)
 	// ...
 

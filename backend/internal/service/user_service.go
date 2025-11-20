@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 
 	"github.com/SEBBAS-5pg/U-Go/backend/internal/models"
 	"github.com/SEBBAS-5pg/U-Go/backend/internal/repository"
@@ -128,4 +129,26 @@ func (s *UserService) UpdateDriverStatusAndLocation(ctx context.Context, userID 
 	}
 
 	return nil
+}
+
+// FindNearbyDrivers coordina la busqueda de conductores online en MongoDB
+func (s *UserService) FindNearbyDrivers(ctx context.Context, latitude float64, longitude float64) ([]models.DriverLocation, error) {
+
+	// 1. Validación básica de coordenadas (opcional pero buena práctica)
+	if math.Abs(latitude) > 90 || math.Abs(longitude) > 180 {
+		return nil, errors.New("Coordenadas geográficas inválidas")
+	}
+
+	// Definimos la distancia máxima para la búsqueda (ej: 10 km = 10000 metros)
+	const maxDistanceMeters = 10000
+
+	// 2. Llamar al repositorio de MongoDB para obtener la lista
+	drivers, err := s.locationRepo.FindNearbyDrivers(ctx, latitude, longitude, maxDistanceMeters)
+	if err != nil {
+		log.Printf("Error al buscar conductores cercanos (service): %v", err)
+		return nil, errors.New("Error interno al buscar conductores")
+	}
+
+	// 3. Devolver la lista
+	return drivers, nil
 }
