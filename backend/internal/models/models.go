@@ -19,6 +19,15 @@ type User struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
+// Tipos ENUM para el estado del viaje (Coinciden con PostgreSQL)
+const (
+	TripStatusSolicitado = "solicitado"
+	TripStatusAceptado   = "aceptado"
+	TripStatusEnCurso    = "en_curso"
+	TripStatusFinalizado = "finalizado"
+	TripStatusCancelado  = "cancelado"
+)
+
 // Vehicle (Vehículo) coincide con la tabla 'vehicles'
 type Vehicle struct {
 	ID              string    `json:"id"`
@@ -33,18 +42,31 @@ type Vehicle struct {
 
 // Trip (Viaje) coincide con la tabla 'trips'
 type Trip struct {
-	ID             string     `json:"id"`
-	PasajeroID     string     `json:"pasajeroId"`
-	ConductorID    *string    `json:"conductorId"` // Puntero para NULOS
-	VehicleID      *string    `json:"vehicleId"`   // Puntero para NULOS
-	Status         string     `json:"status"`
-	OriginLat      float64    `json:"originLat"`
-	OriginLng      float64    `json:"originLng"`
-	DestinationLat float64    `json:"destinationLat"`
-	DestinationLng float64    `json:"destinationLng"`
-	CreatedAt      time.Time  `json:"createdAt"`
-	StartedAt      *time.Time `json:"startedAt"`
-	CompletedAt    *time.Time `json:"completedAt"`
+	ID              string     `json:"id"`
+	PasajeroID      string     `json:"pasajeroId"`
+	ConductorID     string     `json:"conductorId"` // Puede ser nulo hasta que se acepte
+	VehicleID       string     `json:"vehicleId"`   // ID del vehículo usado
+	Status          string     `json:"status"`      // Usará los ENUMs de arriba
+	OriginLat       float64    `json:"originLat"`
+	OriginLng       float64    `json:"originLng"`
+	OriginName      string     `json:"originName,omitempty"`
+	DestinationLat  float64    `json:"destinationLat"`
+	DestinationLng  float64    `json:"destinationLng"`
+	DestinationName string     `json:"destinationName,omitempty"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	StartedAt       *time.Time `json:"startedAt,omitempty"`
+	CompletedAt     *time.Time `json:"completedAt,omitempty"`
+}
+
+// CreateTripRequest (Petición) es la estructura que envía el pasajero
+type CreateTripRequest struct {
+	ConductorID     string  `json:"conductor_id"`
+	OriginLat       float64 `json:"origin_lat"`
+	OriginLng       float64 `json:"origin_lng"`
+	OriginName      string  `json:"origin_name"`
+	DestinationLat  float64 `json:"destination_lat"`
+	DestinationLng  float64 `json:"destination_lng"`
+	DestinationName string  `json:"destination_name"`
 }
 
 // Rating (Calificacion) coincide con la tabla 'ratings'

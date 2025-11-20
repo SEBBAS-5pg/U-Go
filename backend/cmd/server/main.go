@@ -68,6 +68,7 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	vehicleRepo := repository.NewVehicleRepository(db)
 	locationRepo := repository.NewLocationRepository(mongoDB)
+	tripRepo := repository.NewTripRepository(db)
 
 	//(SERVICIOS)
 	// b. "cerebro" (service) - Necesia el repository
@@ -75,6 +76,7 @@ func main() {
 	storageService := service.NewStorageService(mongoDB)
 	userService := service.NewUserService(userRepo, locationRepo, storageService)
 	vehicleService := service.NewVehicleService(vehicleRepo, storageService)
+	tripService := service.NewTripService(tripRepo)
 
 	//(HANDLER)
 	// c. "mesero" (handler) - necesita el service
@@ -83,6 +85,7 @@ func main() {
 	vehicleHandler := api.NewVehicleHandler(vehicleService)
 	driverHandler := api.NewDriverHandler(userService)
 	passengerHandler := api.NewPassengerHandler(userService)
+	tripHandler := api.NewTripHandler(tripService)
 
 	//(MIDDLEWARE)
 	// d. "Guardian de seguridad"
@@ -132,6 +135,9 @@ func main() {
 	// POST /api/v1/vehicles/{vehicleId}/image
 	protectRoutes.HandleFunc("/vehicles/{vehicleId}/image", vehicleHandler.UploadVehicleImage).Methods("POST")
 
+	// --- Endpoints de Pasajero
+	// POST /api/v1/trips (Solicitar un nuevo viaje)
+	protectRoutes.HandleFunc("/trips", tripHandler.CreateTrip).Methods("POST")
 	// (iran las otras rutas protegidas)
 	// ...
 
