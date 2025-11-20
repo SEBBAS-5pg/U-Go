@@ -19,6 +19,13 @@ type User struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
+// CONSTANTES PARA EL ESTADO DEL CONDUCTOR (DriverStatus)
+const (
+	DriverStatusOnline  = "online"
+	DriverStatusOffline = "offline"
+	DriverStatusEnViaje = "en_viaje"
+)
+
 // Tipos ENUM para el estado del viaje (Coinciden con PostgreSQL)
 const (
 	TripStatusSolicitado = "solicitado"
@@ -82,6 +89,7 @@ type Rating struct {
 
 type UpdateUserRequest struct {
 	FullName string `json:"full_name"`
+	IsDriver *bool  `json:"is_driver,omitempty"`
 }
 
 type ContextKey string
@@ -109,4 +117,15 @@ type UpdateLocationRequest struct {
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
 	Status    string  `json:"status"` // ej: "online", "offline"
+}
+
+// AcceptTripRequest es la estructura que usa el conductor para aceptar el viaje
+type AcceptTripRequest struct {
+	VehicleID string `json:"vehicle_id"`
+}
+
+// FinalizeTripRequest es la estructura que usa el conductor para finalizar el viaje
+type FinalizeTripRequest struct {
+	FinalLat float64 `json:"final_lat"` // Opcional: Para registrar dónde terminó
+	FinalLng float64 `json:"final_lng"` // Opcional: Para registrar dónde terminó
 }

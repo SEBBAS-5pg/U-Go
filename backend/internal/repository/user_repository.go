@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	// Importa tus modelos
@@ -147,23 +149,54 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, 
 }
 
 func (r *UserRepository) UpdateUser(ctx context.Context, userID string, req *models.UpdateUserRequest) (*models.User, error) {
-	query := `
-		UPDATE users
-		SET 
-			full_name = $1,
-			updated_at = now()
-		WHERE 
-			id = $2
-		RETURNING 
-			id, email, full_name, password_hash, is_active, activation_token,
-			is_driver, driver_status, profile_image_url, average_rating, created_at
-	`
+
+	// 1. Construir la consulta de forma dinámica
+	updates := []string{"updated_at = NOW()"} // Campo de actualización automática
+	args := []interface{}{}
+	paramCounter := 1 // Contador para $1, $2, etc.
+
+	// Añadir FullName si se proporciona
+	if req.FullName != "" {
+		updates = append(updates, fmt.Sprintf("full_name = $%d", paramCounter))
+		args = append(args, req.FullName)
+		paramCounter++
+	}
+
+	// Añadir IsDriver si se proporciona (req.IsDriver no es nil)
+	if req.IsDriver != nil {
+		updates = append(updates, fmt.Sprintf("is_driver = $%d", paramCounter))
+		args = append(args, *req.IsDriver) // Desreferenciar el puntero *bool
+		paramCounter++
+	}
+
+	// Si no hay campos para actualizar además de updated_at
+	if len(updates) <= 1 {
+		// Podríamos devolver nil, nil para indicar que no hubo cambios o forzar la actualización de full_name
+		return nil, errors.New("debe proporcionar al menos 'full_name' o 'is_driver' para actualizar")
+	}
+
+	setClause := strings.Join(updates, ", ")
+
+	// El último parámetro siempre será el userID para la cláusula WHERE
+	args = append(args, userID)
+
+	// El query final usa el contador de parámetros actual para el WHERE id = $N
+	query := fmt.Sprintf(`
+        UPDATE users
+        SET %s
+        WHERE id = $%d
+        RETURNING 
+            id, email, full_name, password_hash, is_active, activation_token,
+            is_driver, driver_status, profile_image_url, average_rating, created_at
+    `, setClause, paramCounter)
+
 	ctxTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	user := &models.User{}
 
-	err := r.db.QueryRowContext(ctxTimeout, query, req.FullName, userID).Scan(
+	// 2. Ejecutar la consulta con la lista dinámica de argumentos
+	err := r.db.QueryRowContext(ctxTimeout, query, args...).Scan(
 		&user.ID,
 		&user.Email,
 		&user.FullName,

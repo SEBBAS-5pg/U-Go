@@ -76,7 +76,7 @@ func main() {
 	storageService := service.NewStorageService(mongoDB)
 	userService := service.NewUserService(userRepo, locationRepo, storageService)
 	vehicleService := service.NewVehicleService(vehicleRepo, storageService)
-	tripService := service.NewTripService(tripRepo)
+	tripService := service.NewTripService(tripRepo, userService, locationRepo)
 
 	//(HANDLER)
 	// c. "mesero" (handler) - necesita el service
@@ -138,6 +138,11 @@ func main() {
 	// --- Endpoints de Pasajero
 	// POST /api/v1/trips (Solicitar un nuevo viaje)
 	protectRoutes.HandleFunc("/trips", tripHandler.CreateTrip).Methods("POST")
+	// POST /api/v1/trips/{tripId}/accept
+	protectRoutes.HandleFunc("/trips/{tripId}/accept", tripHandler.AcceptTrip).Methods("POST")
+
+	// POST /api/v1/driver/trips/{tripId}/finalize
+	protectRoutes.HandleFunc("/driver/trips/{tripId}/finalize", tripHandler.FinalizeTrip).Methods("POST")
 	// (iran las otras rutas protegidas)
 	// ...
 

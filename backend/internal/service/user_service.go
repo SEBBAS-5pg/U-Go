@@ -50,21 +50,40 @@ func (s *UserService) GetUserProfile(ctx context.Context, userID string) (*model
 
 // UpdateUserProfile valida y actualiza el perfil de un usario
 func (s *UserService) UpdateUserProfile(ctx context.Context, userID string, req *models.UpdateUserRequest) (*models.User, error) {
-	// --- Validación de Lógica de Negocio ---
-	if req.FullName == "" {
-		return nil, errors.New("El nombre completo (full_name) no puede estar vacío")
-	}
-	if len(req.FullName) < 3 {
-		return nil, errors.New("El nombre completo debe tener al menos 3 caracteres")
+	if req.FullName != "" {
+		if len(req.FullName) < 3 {
+			return nil, errors.New("El nombre completo debe tener al menos 3 caracteres")
+		}
 	}
 
-	// Llamar al repositorio para hacer la actualización
+	// Si solo se proporciona IsDriver y es nil, esto pasaría.
+	if req.FullName == "" && req.IsDriver == nil {
+		return nil, errors.New("Debe proporcionar al menos 'full_name' o 'is_driver' para actualizar")
+	}
+
+	// Llamar al repositorio para hacer la actualización (ahora maneja full_name e is_driver)
 	updatedUser, err := s.userRepo.UpdateUser(ctx, userID, req)
 	if err != nil {
 		log.Printf("Error al actualizar perfil (service): %v", err)
 		return nil, errors.New("No se pudo actualizar el perfil del usuario")
 	}
+	if req.IsDriver != nil && *req.IsDriver {
 
+		// 1. Inicializar ubicación en MongoDB
+		// Asignamos una ubicación inicial (0, 0) y el estado 'offline' por defecto
+		locationErr := s.locationRepo.UpsertDriverLocation(ctx, userID,
+			0.0,
+			0.0,
+			models.DriverStatusOffline) // Estado inicial por defecto en Mongo
+
+		if locationErr != nil {
+			// Esto no debería ser un error fatal, pero lo registramos.
+			// El usuario ya está actualizado en Postgres, solo falló Mongo.
+			log.Printf("ADVERTENCIA: Falló la inicialización de MongoDB para el conductor %s: %v", userID, locationErr)
+			// Se puede optar por devolver el error fatal si la inicialización de Mongo es crítica.
+			// Por simplicidad, aquí permitimos que continúe.
+		}
+	}
 	return updatedUser, nil
 }
 
@@ -151,4 +170,23 @@ func (s *UserService) FindNearbyDrivers(ctx context.Context, latitude float64, l
 
 	// 3. Devolver la lista
 	return drivers, nil
+}
+
+// UpdateDriverStatus solo actualiza el estado del conductor en PostgreSQL (sin tocar Mongo)
+func (s *UserService) UpdateDriverStatus(ctx context.Context, userID string, status string) error {
+	if userID == "" {
+		return errors.New("ID de conductor no proporcionado")
+	}
+
+	// 1. Actualizar el estado del conductor en PostgreSQL
+	err := s.userRepo.UpdateDriverStatus(ctx, userID, status)
+	if err != nil {
+		log.Printf("Error al actualizar el estado del conductor en DB (Postgres): %v", err)
+		if err == sql.ErrNoRows {
+			return errors.New("Conductor no encontrado")
+		}
+		return errors.New("No se pudo actualizar el estado del conductor")
+	}
+
+	return nil
 }

@@ -23,7 +23,7 @@ func NewUserHandler(userService *service.UserService) *UserHandler {
 func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	// Extrae el userID del contexto
 	// el middleware es el que lo pone alli
-	userID, ok := r.Context().Value(service.ContextKeyUserID).(string)
+	userID, ok := r.Context().Value(models.ContextUserIDKey).(string)
 	if !ok {
 		// Esto no pasaria si el middleware estsa bien
 		log.Println("Error: /users/me reached without userID in context")
@@ -45,7 +45,7 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 // UpdateMyProfile es el handler para PUT /users/me
 func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 	// 1. Extraer el userID del contexto (puesto por el middleware)
-	userID, ok := r.Context().Value(service.ContextKeyUserID).(string)
+	userID, ok := r.Context().Value(models.ContextUserIDKey).(string)
 	if !ok {
 		log.Println("Error: /users/me (PUT) reached without userID in context")
 		writeJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": "Internal Server Error"})
