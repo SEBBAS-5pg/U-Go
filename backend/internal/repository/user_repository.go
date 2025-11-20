@@ -279,3 +279,27 @@ func (r *UserRepository) UpdateDriverStatus(ctx context.Context, userID string, 
 
 	return nil
 }
+
+// UpdateAverageRating recalcula y actualiza el promedio de calificación de un usuario (conductor)
+func (r *UserRepository) UpdateAverageRating(ctx context.Context, userID string) error {
+	// 1. Consulta SQL: Calcula el promedio de la columna 'rating' de la tabla 'ratings'
+	// donde rated_id es el conductor, y actualiza la columna 'average_rating' en 'users'.
+	query := `
+		UPDATE users 
+		SET average_rating = (
+			SELECT COALESCE(AVG(rating), 0) 
+			FROM ratings 
+			WHERE rated_id = $1
+		)
+		WHERE id = $1
+	`
+	// NOTA: COALESCE(AVG(rating), 0) asegura que si no hay ratings, el promedio sea 0.
+
+	_, err := r.db.ExecContext(ctx, query, userID)
+	if err != nil {
+		log.Printf("Error al actualizar el promedio de rating para el usuario %s: %v", userID, err)
+		return errors.New("error al actualizar el promedio de calificación")
+	}
+
+	return nil
+}

@@ -78,7 +78,7 @@ func main() {
 	userService := service.NewUserService(userRepo, locationRepo, storageService)
 	vehicleService := service.NewVehicleService(vehicleRepo, storageService)
 	tripService := service.NewTripService(tripRepo, userService, locationRepo)
-	ratingService := service.NewRatingService(ratingRepo, tripRepo)
+	ratingService := service.NewRatingService(ratingRepo, tripRepo, userRepo)
 
 	//(HANDLER)
 	// c. "mesero" (handler) - necesita el service
