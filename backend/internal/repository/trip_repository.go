@@ -8,6 +8,7 @@ import (
 	"log"
 
 	"github.com/SEBBAS-5pg/U-Go/backend/internal/models"
+	"github.com/google/uuid"
 )
 
 // TripRepository maneja la interacción con la tabla 'trips' en PostgreSQL
@@ -175,6 +176,113 @@ func (r *TripRepository) FinalizeTrip(ctx context.Context, tripID string, conduc
 	}
 
 	// Convertir sql.NullTime a *time.Time para el modelo
+	if startedAt.Valid {
+		trip.StartedAt = &startedAt.Time
+	}
+	if completedAt.Valid {
+		trip.CompletedAt = &completedAt.Time
+	}
+
+	return &trip, nil
+}
+
+// CancelTrip actualiza el estado del viaje a 'cancelado' en PostgreSQL.
+// Se añade el contexto para seguir las buenas prácticas.
+func (r *TripRepository) CancelTrip(ctx context.Context, tripID uuid.UUID) error {
+	// 1. Consulta SQL para actualizar el estado
+	query := `
+        UPDATE trips
+        SET status = $1
+        WHERE id = $2 AND status IN ('solicitado', 'aceptado', 'en_curso')
+    `
+	// 2. Ejecutar la consulta
+	result, err := r.db.ExecContext(
+		ctx,
+		query,
+		models.TripStatusCancelado, // Nuevo estado: 'cancelado'
+		tripID.String(),            // El ID del viaje
+	)
+
+	if err != nil {
+		log.Printf("Error al cancelar viaje en DB: %v", err)
+		return errors.New("error al actualizar el estado del viaje")
+	}
+
+	// 3. Verificar si se actualizó alguna fila
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error al obtener filas afectadas: %w", err)
+	}
+
+	// 4. Si 0 filas afectadas, el viaje no existe o ya estaba finalizado/cancelado
+	if rowsAffected == 0 {
+		return errors.New("viaje no encontrado, ya finalizado o cancelado")
+	}
+
+	return nil
+}
+
+// GetByID busca un viaje por su ID
+func (r *TripRepository) GetByID(ctx context.Context, tripID uuid.UUID) (*models.Trip, error) {
+	query := `
+        SELECT 
+            id, pasajero_id, conductor_id, vehicle_id, status, 
+            origin_lat, origin_lng, origin_name, 
+            destination_lat, destination_lng, destination_name, 
+            created_at, started_at, completed_at
+        FROM trips
+        WHERE id = $1
+    `
+
+	var trip models.Trip
+	var conductorID sql.NullString // Para manejar el conductor_id nulo
+	var vehicleID sql.NullString   // Para manejar el vehicle_id nulo
+	var startedAt, completedAt sql.NullTime
+
+	err := r.db.QueryRowContext(ctx, query, tripID.String()).Scan(
+		&trip.ID,
+		&trip.PasajeroID,
+		&conductorID, // Se escanea aquí
+		&vehicleID,   // Se escanea aquí
+		&trip.Status,
+		&trip.OriginLat,
+		&trip.OriginLng,
+		&trip.OriginName,
+		&trip.DestinationLat,
+		&trip.DestinationLng,
+		&trip.DestinationName,
+		&trip.CreatedAt,
+		&startedAt,
+		&completedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("trip not found")
+		}
+		log.Printf("Error al buscar viaje por ID en DB: %v", err)
+		return nil, fmt.Errorf("error al obtener el viaje: %w", err)
+	}
+
+	// Convertir sql.NullString a *string
+	// Convertir sql.NullString a string (o dejarlo vacío si es nulo)
+	if conductorID.Valid {
+		// CORRECCIÓN FINAL: Asignar el valor (string), NO el puntero (*string).
+		trip.ConductorID = conductorID.String
+	} else {
+		// Si es nulo en DB, asegúrate de que el campo sea un string vacío o el valor por defecto.
+		trip.ConductorID = ""
+	}
+
+	if vehicleID.Valid {
+		// CORRECCIÓN FINAL: Asignar el valor (string), NO el puntero (*string).
+		trip.VehicleID = vehicleID.String
+	} else {
+		// Si es nulo en DB
+		trip.VehicleID = ""
+	}
+
+	// Convertir sql.NullTime a *time.Time
 	if startedAt.Valid {
 		trip.StartedAt = &startedAt.Time
 	}

@@ -129,3 +129,10 @@ type FinalizeTripRequest struct {
 	FinalLat float64 `json:"final_lat"` // Opcional: Para registrar dónde terminó
 	FinalLng float64 `json:"final_lng"` // Opcional: Para registrar dónde terminó
 }
+
+// Añadir la estructura de solicitud de calificación
+type CreateRatingRequest struct {
+	TripID  string `json:"trip_id" validate:"required"`
+	Rating  int    `json:"rating" validate:"required,min=1,max=5"` // Usamos Rating, consistente con el modelo y el JSON
+	Comment string `json:"comment"`
+}

@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/SEBBAS-5pg/U-Go/backend/internal/models"
 	"github.com/SEBBAS-5pg/U-Go/backend/internal/repository"
+	"github.com/google/uuid"
 )
 
 // TripService maneja la lógica de negocio para los viajes
@@ -136,4 +138,49 @@ func (s *TripService) FinalizeTrip(ctx context.Context, tripID string, conductor
 	log.Printf("⚠️ Simulación: Notificación enviada al pasajero %s: ¡Tu viaje ha finalizado!", updatedTrip.PasajeroID)
 
 	return updatedTrip, nil
+}
+
+// CancelTrip maneja la lógica de cancelación y resetea el estado del conductor si aplica.
+func (s *TripService) CancelTrip(ctx context.Context, tripID uuid.UUID, userID uuid.UUID) error {
+	// 1. Obtener el viaje (AÑADIMOS ctx)
+	trip, err := s.tripRepo.GetByID(ctx, tripID)
+	if err != nil {
+		return fmt.Errorf("trip not found: %w", err)
+	}
+
+	// 2. Validación de Participante (Corregimos PasajeroID y manejo de ConductorID)
+	userIDStr := userID.String()
+
+	// Corregido: usa trip.PasajeroID y compara con userID.String()
+	isPassenger := trip.PasajeroID == userIDStr
+
+	// Corregido: ConductorID es string, se compara con "" y sin desreferenciar
+	isDriver := trip.ConductorID != "" && trip.ConductorID == userIDStr
+
+	if !isPassenger && !isDriver {
+		return errors.New("only the assigned passenger or driver can cancel this trip")
+	}
+
+	// 3. Validación de Estado: Solo se puede cancelar si no está finalizado.
+	if trip.Status == "finalizado" || trip.Status == "cancelado" {
+		return errors.New("cannot cancel a trip that is already finished or canceled")
+	}
+
+	// 4. Actualizar estado en PostgreSQL (AÑADIMOS ctx)
+	if err := s.tripRepo.CancelTrip(ctx, tripID); err != nil {
+		return fmt.Errorf("error updating trip status: %w", err)
+	}
+
+	// 5. Lógica Crítica: Resetear estado del Conductor
+	// Corregido: Compara con "" y usa ConductorID directamente
+	if trip.ConductorID != "" && trip.Status != "solicitado" {
+		// Usa trip.ConductorID directamente (es un string de UUID)
+		if err := s.userService.UpdateDriverStatus(ctx, trip.ConductorID, "online"); err != nil {
+			log.Printf("Warning: Failed to reset driver status after cancellation for user %s: %v", trip.ConductorID, err)
+		}
+	}
+
+	// Opcional: Notificar a la otra parte (Pasajero/Conductor) sobre la cancelación.
+
+	return nil
 }

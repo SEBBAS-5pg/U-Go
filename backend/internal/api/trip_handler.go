@@ -3,9 +3,11 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/SEBBAS-5pg/U-Go/backend/internal/models"
 	"github.com/SEBBAS-5pg/U-Go/backend/internal/service"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -139,4 +141,52 @@ func (h *TripHandler) FinalizeTrip(w http.ResponseWriter, r *http.Request) {
 	// 5. Respuesta de éxito
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(updatedTrip)
+}
+
+// CancelTrip maneja POST /trips/{tripId}/cancel
+func (h *TripHandler) CancelTrip(w http.ResponseWriter, r *http.Request) {
+	// 1. Extraer tripID de la URL
+	vars := mux.Vars(r)
+	tripIDStr := vars["tripId"]
+
+	tripID, err := uuid.Parse(tripIDStr)
+	if err != nil {
+		// CORRECCIÓN 1: Usar RespondWithError directamente
+		RespondWithError(w, http.StatusBadRequest, "Invalid Trip ID format")
+		return
+	}
+
+	// 2. Extraer userID del contexto (middleware)
+	// CORRECCIÓN 2: Usar la clave de contexto definida en models (o donde sea que esté definida la clave de usuario)
+	// Vemos que CreateTrip, AcceptTrip y FinalizeTrip usan models.ContextUserIDKey
+	userIDStr, ok := r.Context().Value(models.ContextUserIDKey).(string)
+	if !ok || userIDStr == "" {
+		// Usamos el manejo de error existente para consistencia
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "No autorizado o ID de usuario no encontrado"})
+		return
+	}
+
+	// Convertir el ID de usuario a UUID para el servicio
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		RespondWithError(w, http.StatusUnauthorized, "Invalid User ID format in context")
+		return
+	}
+
+	// 3. Llamar al servicio
+	if err := h.tripService.CancelTrip(r.Context(), tripID, userID); err != nil {
+		// Aquí manejamos los errores específicos del servicio
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "only the assigned") {
+			// CORRECCIÓN 3: Usar RespondWithError directamente
+			RespondWithError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		// CORRECCIÓN 4: Usar RespondWithError directamente
+		RespondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// CORRECCIÓN 5: Usar RespondWithJSON directamente
+	RespondWithJSON(w, http.StatusOK, map[string]string{"message": "Trip successfully canceled", "status": "cancelado"})
 }

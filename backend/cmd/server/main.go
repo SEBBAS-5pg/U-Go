@@ -69,6 +69,7 @@ func main() {
 	vehicleRepo := repository.NewVehicleRepository(db)
 	locationRepo := repository.NewLocationRepository(mongoDB)
 	tripRepo := repository.NewTripRepository(db)
+	ratingRepo := repository.NewRatingRepository(db)
 
 	//(SERVICIOS)
 	// b. "cerebro" (service) - Necesia el repository
@@ -77,6 +78,7 @@ func main() {
 	userService := service.NewUserService(userRepo, locationRepo, storageService)
 	vehicleService := service.NewVehicleService(vehicleRepo, storageService)
 	tripService := service.NewTripService(tripRepo, userService, locationRepo)
+	ratingService := service.NewRatingService(ratingRepo, tripRepo)
 
 	//(HANDLER)
 	// c. "mesero" (handler) - necesita el service
@@ -86,6 +88,7 @@ func main() {
 	driverHandler := api.NewDriverHandler(userService)
 	passengerHandler := api.NewPassengerHandler(userService)
 	tripHandler := api.NewTripHandler(tripService)
+	ratingHandler := api.NewRatingHandler(ratingService)
 
 	//(MIDDLEWARE)
 	// d. "Guardian de seguridad"
@@ -140,9 +143,14 @@ func main() {
 	protectRoutes.HandleFunc("/trips", tripHandler.CreateTrip).Methods("POST")
 	// POST /api/v1/trips/{tripId}/accept
 	protectRoutes.HandleFunc("/trips/{tripId}/accept", tripHandler.AcceptTrip).Methods("POST")
-
+	// POST /api/v1/trips/{tripId}/cancel
+	protectRoutes.HandleFunc("/trips/{tripId}/cancel", tripHandler.CancelTrip).Methods("POST")
 	// POST /api/v1/driver/trips/{tripId}/finalize
 	protectRoutes.HandleFunc("/driver/trips/{tripId}/finalize", tripHandler.FinalizeTrip).Methods("POST")
+
+	// --- Endpoints de Calificaciones ---
+	// POST /api/v1/ratings (Calificar un viaje finalizado)
+	protectRoutes.HandleFunc("/ratings", ratingHandler.CreateRating).Methods("POST")
 	// (iran las otras rutas protegidas)
 	// ...
 
