@@ -1,0 +1,109 @@
+/* --- Estilos para la nueva tarjeta de Envío de Tracking --- */
+.tracking-card {
+    margin-top: 10px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.tracking-card ion-icon {
+    margin-right: 5px;
+}
+
+/* Estilos de bordes por estado */
+.card-success { border: 2px solid var(--ion-color-success); }
+.card-danger { border: 2px solid var(--ion-color-danger); }
+.card-warning { border: 2px solid var(--ion-color-warning); }
+.card-medium { border: 2px solid var(--ion-color-medium); }
+
+
+/* --- Estilos del GPS (Ya existentes, los dejo aquí para referencia) --- */
+.gps-card {
+    border-left: 6px solid var(--ion-color-secondary);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.gps-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2em;
+}
+
+.coords-display {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+/* Estilo para modo oscuro */
+@media (prefers-color-scheme: dark) {
+    .coords-display {
+        background-color: #2a2a2a;
+    }
+}
+
+.coord-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding-bottom: 5px;
+}
+
+.coord-item .label {
+    font-weight: 600;
+    color: var(--ion-color-medium);
+}
+
+.coord-item .value {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: var(--ion-color-dark);
+}
+
+.last-update {
+    margin-top: 5px;
+    font-size: 0.75em;
+    text-align: right;
+    color: var(--ion-color-medium-tint);
+}
+
+.error-container {
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.id-note {
+    font-family: monospace;
+    background: #ffecec;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: var(--ion-color-danger);
+}
+
+/* Pequeño ajuste para el spinner en línea */
+.spinner-inline {
+    position: initial !important; 
+    top: initial !important; 
+    left: initial !important; 
+    transform: initial !important; 
+    display: inline-block;
+    width: 20px; /* Ajusta el tamaño del spinner */
+    height: 20px;
+    margin-right: 8px;
+}
+
+.scanning-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ion-color-primary);
+    font-weight: 500;
+}

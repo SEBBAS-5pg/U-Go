@@ -89,6 +89,7 @@ func main() {
 	passengerHandler := api.NewPassengerHandler(userService)
 	tripHandler := api.NewTripHandler(tripService)
 	ratingHandler := api.NewRatingHandler(ratingService)
+	locationHandler := api.NewLocationHandler(locationRepo)
 
 	//(MIDDLEWARE)
 	// d. "Guardian de seguridad"
@@ -112,6 +113,8 @@ func main() {
 	// Ruta Login (T-08)
 	apiV1.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
 	// (Aquí irán los otros endpoints: /vehicles, etc.)
+	apiV1.HandleFunc("/trip/{tripId}/location", locationHandler.UpdateTripLocation).Methods("POST")
+	apiV1.HandleFunc("/trip/{tripId}/location", locationHandler.GetTripLocation).Methods("GET")
 
 	// -- Rutas Protegidas (REQUIERE TOKEN JWT) ---
 

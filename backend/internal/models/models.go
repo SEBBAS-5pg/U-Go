@@ -107,6 +107,7 @@ type GeoJson struct {
 // DriverLocation representa el documento que se guardará en MongoDB
 type DriverLocation struct {
 	UserID    string    `json:"user_id" bson:"userid"`
+	TripID    string    `json:"trip_id,omitempty" bson:"trip_id,omitempty"`
 	Status    string    `json:"status" bson:"status"`
 	Location  GeoJson   `json:"location" bson:"location"`
 	UpdatedAt time.Time `json:"updated_at" bson:"updatedat"`

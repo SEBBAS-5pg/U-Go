@@ -1,0 +1,99 @@
+/* Contenedor principal del mapa */
+.map-container {
+    height: 400px; /* Altura fija para el ejemplo */
+    width: 100%;
+    margin-bottom: 15px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    position: relative;
+    background-color: #e0e0e0;
+}
+
+.map-simulation {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* Simulación visual del fondo del mapa */
+.map-bg {
+    width: 100%;
+    height: 100%;
+    /* Simula un mapa con un patrón de líneas o colores */
+    background-image: repeating-linear-gradient(45deg, #c4e4c2, #c4e4c2 10px, #b2d8b0 10px, #b2d8b0 20px);
+    opacity: 0.8;
+}
+
+/* Capa de Marcadores (Simulación) */
+.marker-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* Estilo para los marcadores */
+.map-marker {
+    position: absolute;
+    transform: translate(-50%, -100%); /* Centra el marcador en su coordenada */
+    padding: 5px 8px;
+    background: white;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    animation: marker-pop 0.3s ease-out;
+}
+
+/* Posiciones simuladas de los marcadores */
+.driver-marker {
+    /* Posición simulada cerca del centro */
+    top: 45%; 
+    left: 60%;
+    animation: driver-move 5s infinite alternate ease-in-out; /* Simula movimiento */
+}
+
+.passenger-marker {
+    /* Posición simulada en el centro */
+    top: 50%; 
+    left: 50%;
+}
+
+/* Animación de movimiento del conductor (simulación) */
+@keyframes driver-move {
+    0% { transform: translate(-50%, -100%) translateX(0px) translateY(0px); }
+    100% { transform: translate(-50%, -100%) translateX(10px) translateY(-5px); }
+}
+
+
+/* Estilo de carga del mapa */
+.map-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.9);
+    color: var(--ion-color-medium);
+    font-weight: 500;
+}
+
+/* Leyenda del mapa */
+.map-legend {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    padding: 5px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    font-size: 0.7em;
+    z-index: 10;
+}

@@ -108,3 +108,36 @@ func (r *LocationRepository) FindNearbyDrivers(ctx context.Context, latitude flo
 
 	return drivers, nil
 }
+
+// UpsertTripLocation actualiza la ubicación basada en el TripID (para monitoreo de viaje específico)
+func (r *LocationRepository) UpsertTripLocation(ctx context.Context, tripID string, lat, lng float64) error {
+	// Filtramos por trip_id en lugar de userid
+	filter := bson.M{"trip_id": tripID}
+
+	update := bson.M{
+		"$set": bson.M{
+			"trip_id":    tripID,
+			"location":   models.GeoJson{Type: "Point", Coordinates: []float64{lng, lat}},
+			"updated_at": time.Now(),
+			// Nota: Podríamos añadir status "en_viaje" si quisiéramos forzarlo
+		},
+	}
+
+	opts := options.Update().SetUpsert(true)
+	_, err := r.Collection.UpdateOne(ctx, filter, update, opts)
+	return err
+}
+
+// GetTripLocation obtiene la última ubicación registrada para un TRIP_ID específico
+func (r *LocationRepository) GetTripLocation(ctx context.Context, tripID string) (*models.DriverLocation, error) {
+	var location models.DriverLocation
+
+	filter := bson.M{"trip_id": tripID}
+
+	// Buscamos el documento
+	err := r.Collection.FindOne(ctx, filter).Decode(&location)
+	if err != nil {
+		return nil, err
+	}
+	return &location, nil
+}
