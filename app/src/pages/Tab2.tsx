@@ -1,174 +1,186 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  IonContent, 
-  IonHeader, 
-  IonPage, 
-  IonTitle, 
-  IonToolbar, 
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardContent,
-  IonItem,
-  IonLabel,
-  IonNote,
-  IonBadge,
-  IonIcon
+  IonContent, IonHeader, IonPage, IonTitle, IonToolbar, 
+  IonCard, IonCardHeader, IonCardTitle, IonCardContent,
+  IonItem, IonLabel, IonNote, IonBadge, IonIcon, IonButton, 
+  IonInput, IonList, IonToast
 } from '@ionic/react';
-import { warning } from 'ionicons/icons';
+import { navigate, search, copy } from 'ionicons/icons'; 
 import TripMap from '../components/MapComponent'; 
-import { LocationReceiveService, DriverLocation } from '../services/LocationReceiveService'; // Importamos el nuevo servicio
+import { LocationReceiveService } from '../services/LocationReceiveService';
+import { TripService, CreateTripPayload } from '../services/TripService';
 import './Tab2.css';
 
-// ⚠️ SIMULACIÓN DE ID DE VIAJE (Pasajero) ⚠️
-const TRIP_ID_MOCK = "85b57f0f-8979-4591-b0e2-d4b998f45a0b"; 
-
-// Frecuencia de Polling (obtener ubicación del conductor)
-const POLLING_INTERVAL_MS = 3000; // Cada 3 segundos
-
-const mockTripData = {
-    id: TRIP_ID_MOCK,
-    status: 'en_curso', 
-    originName: 'Plaza Cataluña',
-    destinationName: 'Parque Güell',
-    conductorName: 'Juan Pérez',
-    vehicleModel: 'Seat Arona',
-    vehiclePlate: 'ABC-123',
-};
-
-// Coordenadas iniciales para el mapa (simulación)
-const PASSENGER_COORDS: [number, number] = [41.3851, 2.1734];
-
+const DEFAULT_CITY_LAT = 4.6097; 
+const DEFAULT_CITY_LNG = -74.0817;
 
 const Tab2: React.FC = () => {
-    // Estado para la ubicación del conductor recibida del backend
+    const [currentTripId, setCurrentTripId] = useState<string | null>(null);
+    
+    const [origin, setOrigin] = useState("Mi Casa");
+    const [destination, setDestination] = useState("Oficina");
+    const [isCreating, setIsCreating] = useState(false);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+
     const [driverLocation, setDriverLocation] = useState<[number, number] | null>(null);
     const [pollingError, setPollingError] = useState<string | null>(null);
     const [lastReceivedTime, setLastReceivedTime] = useState<Date | null>(null);
 
-    // 1. Efecto para el Polling (Consulta de Ubicación en Tiempo Real)
+    // 0. 🧠 PERSISTENCIA: Cargar ID al iniciar
     useEffect(() => {
+        const savedTripId = localStorage.getItem('passenger_active_trip_id');
+        if (savedTripId) {
+            console.log("Restaurando sesión de pasajero:", savedTripId);
+            setCurrentTripId(savedTripId);
+        }
+    }, []);
+
+    // CREAR VIAJE
+    const handleRequestTrip = async () => {
+        if (!origin || !destination) {
+            setToastMessage("Por favor ingresa origen y destino");
+            return;
+        }
+        setIsCreating(true);
+        try {
+            const payload: CreateTripPayload = {
+                origin_name: origin,
+                origin_lat: DEFAULT_CITY_LAT,
+                origin_lng: DEFAULT_CITY_LNG,
+                destination_name: destination,
+                destination_lat: DEFAULT_CITY_LAT + 0.05, 
+                destination_lng: DEFAULT_CITY_LNG + 0.02,
+                conductor_id: "" 
+            };
+
+            const newTrip = await TripService.createTrip(payload);
+            setCurrentTripId(newTrip.id);
+            
+            // 💾 GUARDAR EN LOCALSTORAGE
+            localStorage.setItem('passenger_active_trip_id', newTrip.id);
+            
+            setToastMessage("¡Viaje solicitado! Copia el ID para el conductor.");
+
+        } catch (error: any) {
+            console.error(error);
+            setToastMessage(error.message || "Error al crear viaje");
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    // ACCIÓN: NUEVO VIAJE (LIMPIAR)
+    const handleNewTrip = () => {
+        setCurrentTripId(null);
+        setDriverLocation(null);
+        setLastReceivedTime(null);
+        // 🗑️ BORRAR DE LOCALSTORAGE
+        localStorage.removeItem('passenger_active_trip_id');
+    };
+
+    // POLLING
+    useEffect(() => {
+        if (!currentTripId) return;
         const fetchLocation = async () => {
             try {
-                // 1. Llamar al servicio para obtener la ubicación
-                const locationData: DriverLocation = await LocationReceiveService.getDriverLocation(TRIP_ID_MOCK);
-                
-                // 2. Actualizar el estado con las coordenadas
+                const locationData = await LocationReceiveService.getDriverLocation(currentTripId);
                 setDriverLocation([locationData.latitude, locationData.longitude]);
                 setPollingError(null);
                 setLastReceivedTime(new Date());
-
-            } catch (err) {
-                // Si hay error (ej: 404 o backend caído), lo almacenamos
-                const errorMsg = err instanceof Error ? err.message : "Error desconocido al hacer polling.";
-                setPollingError(errorMsg);
-                console.error("Error de Polling:", errorMsg);
-            }
+            } catch (err) { console.log("Esperando ubicación..."); }
         };
+        fetchLocation();
+        const intervalId = setInterval(fetchLocation, 3000);
+        return () => clearInterval(intervalId);
+    }, [currentTripId]);
 
-        // Iniciar el Polling: ejecutar inmediatamente y luego cada intervalo
-        fetchLocation(); // Primera ejecución inmediata
-        const intervalId = setInterval(fetchLocation, POLLING_INTERVAL_MS);
+    // VISTA FORMULARIO
+    const renderRequestForm = () => (
+        <div className="ion-padding">
+            <IonCard>
+                <IonCardHeader><IonCardTitle>Pedir Viaje</IonCardTitle></IonCardHeader>
+                <IonCardContent>
+                    <IonList>
+                        <IonItem lines="none">
+                            <IonIcon icon={navigate} slot="start" color="primary"/>
+                            <IonInput label="Origen" labelPlacement="floating" value={origin} onIonInput={e => setOrigin(e.detail.value!)}/>
+                        </IonItem>
+                        <IonItem lines="none">
+                            <IonIcon icon={search} slot="start" color="secondary"/>
+                            <IonInput label="Destino" labelPlacement="floating" value={destination} onIonInput={e => setDestination(e.detail.value!)}/>
+                        </IonItem>
+                    </IonList>
+                    <div className="ion-padding-top">
+                        <IonButton expand="block" onClick={handleRequestTrip} disabled={isCreating}>
+                            {isCreating ? "Solicitando..." : "Solicitar U-Go"}
+                        </IonButton>
+                    </div>
+                </IonCardContent>
+            </IonCard>
+        </div>
+    );
 
-        // Limpieza: Detener el intervalo al desmontar el componente
-        return () => {
-            clearInterval(intervalId);
-            console.log("Polling de ubicación del conductor detenido.");
-        };
-    }, []); // El array vacío asegura que solo se ejecute una vez al montar
+    // VISTA MAPA
+    const renderTripMonitor = () => {
+        const driverCoords = driverLocation ? [driverLocation[0], driverLocation[1]] as [number, number] : undefined;
+        const myCoords = [DEFAULT_CITY_LAT, DEFAULT_CITY_LNG] as [number, number];
 
+        return (
+            <>
+                <TripMap 
+                    driverLocation={driverCoords}
+                    passengerLocation={myCoords} 
+                    center={myCoords} 
+                    zoom={13}
+                />
+                
+                <IonCard className="id-copy-box">
+                    <IonCardContent>
+                        <IonItem lines="none">
+                            <IonLabel position="stacked" color="medium">ID para el conductor:</IonLabel>
+                            <IonInput readonly value={currentTripId || ""} />
+                            <IonButton slot="end" fill="clear" onClick={() => {
+                                if(currentTripId) {
+                                    navigator.clipboard.writeText(currentTripId);
+                                    setToastMessage("¡ID copiado!");
+                                }
+                            }}>
+                                <IonIcon icon={copy} />
+                            </IonButton>
+                        </IonItem>
+                    </IonCardContent>
+                </IonCard>
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-          case 'en_curso': return 'success';
-          case 'solicitado': return 'warning';
-          case 'finalizado': return 'tertiary'; 
-          case 'cancelado': return 'danger'; 
-          default: return 'medium';
-        }
-    };
-    
-    // Convertimos la ubicación recibida (si existe) al formato de MapComponent
-    const driverCoords: [number, number] | undefined = driverLocation ? [driverLocation[0], driverLocation[1]] : undefined;
-
-  return (
-    <IonPage>
-      <IonHeader>
-        <IonToolbar color="secondary">
-          <IonTitle>Ruta del Viaje</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-      
-      <IonContent fullscreen className="ion-padding">
-
-        {/* --- MAPA DE RASTREO --- */}
-        {/* Le pasamos la ubicación del conductor (real o nula) y la del pasajero (mock) */}
-        <TripMap 
-            driverLocation={driverCoords}
-            passengerLocation={PASSENGER_COORDS} // La ubicación del pasajero es mockeada aquí
-            center={PASSENGER_COORDS} // Centramos el mapa en el pasajero
-            zoom={14}
-        />
-        
-        {/* --- ESTADO DEL POLLING --- */}
-        <IonCard color={pollingError ? "danger" : "success"} className="ion-margin-bottom ion-text-center">
-            <IonCardContent className="ion-no-padding">
-                <IonItem color={pollingError ? "danger" : "success"} lines="none">
-                    <IonIcon icon={warning} slot="start" />
-                    <IonLabel className="ion-text-wrap">
-                        {pollingError ? (
-                            <IonNote color="light" style={{ fontWeight: 'bold' }}>
-                                {pollingError}
-                            </IonNote>
-                        ) : (
-                            <IonNote color="light">
-                                {lastReceivedTime ? `Última ubicación recibida: ${lastReceivedTime.toLocaleTimeString()}` : "Conectando al servidor..."}
+                <IonCard color="light" className="ion-margin-bottom">
+                    <IonCardHeader>
+                        <IonCardTitle className="ion-text-center">Estado del Viaje</IonCardTitle>
+                    </IonCardHeader>
+                    <IonCardContent className="ion-text-center">
+                        <p className="status-text">Esperando conductor...</p>
+                        {lastReceivedTime && (
+                            <IonNote color="success" style={{fontWeight: 'bold'}}>
+                                <br/>¡Conductor en movimiento!<br/>Actualizado: {lastReceivedTime.toLocaleTimeString()}
                             </IonNote>
                         )}
-                    </IonLabel>
-                </IonItem>
-            </IonCardContent>
-        </IonCard>
+                    </IonCardContent>
+                </IonCard>
 
-        {/* --- DETALLES DEL VIAJE --- */}
-        <IonCard color="light" className="ion-margin-bottom">
-            <IonCardHeader>
-                <IonCardTitle className="ion-text-center">Viaje Activo</IonCardTitle>
-                <div className="ion-text-center ion-padding-top">
-                    <IonBadge color={getStatusColor(mockTripData.status)} style={{ fontSize: '1.2em', padding: '8px' }}>
-                        {mockTripData.status.toUpperCase().replace('_', ' ')}
-                    </IonBadge>
-                </div>
-            </IonCardHeader>
-        </IonCard>
+                <IonButton expand="block" color="medium" fill="outline" onClick={handleNewTrip}>
+                    Nuevo Viaje / Salir
+                </IonButton>
+            </>
+        );
+    };
 
-        <IonCard>
-            <IonCardHeader>
-                <IonCardTitle>Detalles del Conductor</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-                <IonItem lines="full">
-                    <IonLabel>Conductor:</IonLabel>
-                    <IonNote slot="end" color="dark">{mockTripData.conductorName}</IonNote>
-                </IonItem>
-                <IonItem lines="full">
-                    <IonLabel>Vehículo:</IonLabel>
-                    <IonNote slot="end" color="dark">{mockTripData.vehicleModel}</IonNote>
-                </IonItem>
-                <IonItem lines="none">
-                    <IonLabel>Placa:</IonLabel>
-                    <IonNote slot="end" color="dark">{mockTripData.vehiclePlate}</IonNote>
-                </IonItem>
-            </IonCardContent>
-        </IonCard>
-
-        <div className="ion-padding-top ion-text-center">
-            <IonNote color="medium">Tu ubicación y la del conductor se actualizan en tiempo real.</IonNote>
-        </div>
-
-      </IonContent>
-    </IonPage>
-  );
+    return (
+        <IonPage>
+            <IonHeader><IonToolbar color="secondary"><IonTitle>Pasajero</IonTitle></IonToolbar></IonHeader>
+            <IonContent fullscreen>
+                {currentTripId ? renderTripMonitor() : renderRequestForm()}
+                <IonToast isOpen={!!toastMessage} message={toastMessage || ""} duration={2000} onDidDismiss={() => setToastMessage(null)} />
+            </IonContent>
+        </IonPage>
+    );
 };
 
 export default Tab2;

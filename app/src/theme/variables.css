@@ -1,48 +1,38 @@
-/* 1. Importar Tailwind (Como lo hicimos) */
+/* 1. Importar Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 2. Definir la paleta de colores :root de Ionic para U-Go
-   Esta es la "fuente de la verdad" para los colores de la app.
-*/
+/* 2. Paleta de Colores Original (Limpia) */
 :root {
-  /** Colores Base (Modo Claro - Light Mode) **/
-  --ion-background-color: #f4f5f7; /* Un gris muy claro, mejor que blanco puro */
-  --ion-background-color-rgb: 244, 245, 247;
+  /** Color Primario (Verde U-Go #CCFF33) **/
+  --ion-color-primary: #CCFF33;
+  --ion-color-primary-rgb: 204, 255, 51;
+  --ion-color-primary-contrast: #000000; /* Texto negro para leer bien sobre el verde */
+  --ion-color-primary-contrast-rgb: 0, 0, 0;
+  --ion-color-primary-shade: #b4e02d;
+  --ion-color-primary-tint: #d1ff47;
 
-  --ion-text-color: #222428; /* Un negro suave */
-  --ion-text-color-rgb: 34, 36, 40;
+  /** Color Secundario (Gris Oscuro / Negro Suave) **/
+  --ion-color-secondary: #3dc2ff; /* O el azul que tenías antes si prefieres */
+  --ion-color-secondary-rgb: 61, 194, 255;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-contrast-rgb: 255, 255, 255;
+  --ion-color-secondary-shade: #36abe0;
+  --ion-color-secondary-tint: #50c8ff;
 
-  /** Color Primario (Azul U-Go) **/
-  --ion-color-primary: #3880ff;
-  --ion-color-primary-rgb: 56, 128, 255;
-  --ion-color-primary-contrast: #ffffff;
-  --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #3171e0;
-  --ion-color-primary-tint: #4c8dff;
-
-  /** Color Secundario (Acento Naranja/Dorado U-Go) **/
-  --ion-color-secondary: #f2c94c;
-  --ion-color-secondary-rgb: 242, 201, 76;
-  --ion-color-secondary-contrast: #000000;
-  --ion-color-secondary-contrast-rgb: 0, 0, 0;
-  --ion-color-secondary-shade: #d6b243;
-  --ion-color-secondary-tint: #f3cf5e;
-
-  /** Colores de Feedback (Éxito, Peligro, etc.) **/
+  /** Colores de Estado (Estándar Ionic) **/
   --ion-color-tertiary: #5260ff;
   --ion-color-success: #2dd36f;
   --ion-color-warning: #ffc409;
   --ion-color-danger: #eb445a;
+  --ion-color-medium: #92949c;
+  --ion-color-light: #f4f5f8;
 
-  /** Grises (Modo Claro) **/
-  --ion-color-dark: #222428;
-  --ion-color-medium: #E0E1DD;
-  --ion-color-light: #f4f5f7;
-
-  /*
-   * para el Modo Oscuro si lo deseas, usando:
-   * @media (prefers-color-scheme: dark) { ... }
-   */
+  /** Fondos y Textos (Estándar) **/
+  --ion-background-color: #ffffff;
+  --ion-text-color: #000000;
 }
+
+/* SIN estilos extraños para botones o cards. 
+   Dejamos que Ionic maneje la apariencia nativa (Material Design / iOS) */

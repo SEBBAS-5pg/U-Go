@@ -25,6 +25,16 @@ export interface TripData {
     completedAt?: string; 
 }
 
+// Estructura para solicitar un viaje
+export interface CreateTripPayload {
+    origin_name: string;
+    origin_lat: number;
+    origin_lng: number;
+    destination_name: string;
+    destination_lat: number;
+    destination_lng: number;
+    conductor_id?: string; // Opcional por ahora
+}
 
 // Llama al endpoint GET /trips/{tripId}
 async function getTripData(tripId: string): Promise<TripData> {
@@ -56,7 +66,53 @@ async function getTripData(tripId: string): Promise<TripData> {
     }
 }
 
+async function createTrip(payload: CreateTripPayload): Promise<TripData> {
+    const token = AuthService.getToken();
+    if (!token) throw new Error("No hay sesión activa");
+
+    try {
+        const response = await axios.post<TripData>(
+            `${BASE_URL}/trips`,
+            payload,
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            }
+        );
+        return response.data;
+    } catch (error) {
+        if (isAxiosError(error) && error.response) {
+            throw new Error(error.response.data.error || "Error al solicitar viaje");
+        }
+        throw new Error("Error de red al crear viaje");
+    }
+}
+// Función para que un conductor acepte un viaje
+async function acceptTrip(tripId: string, vehicleId: string): Promise<TripData> {
+    const token = AuthService.getToken();
+    if (!token) throw new Error("No hay sesión activa");
+
+    try {
+        // El backend espera { vehicle_id: "..." }
+        const payload = { vehicle_id: vehicleId };
+        
+        const response = await axios.post<TripData>(
+            `${BASE_URL}/trips/${tripId}/accept`,
+            payload,
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            }
+        );
+        return response.data;
+    } catch (error) {
+        if (isAxiosError(error) && error.response) {
+            throw new Error(error.response.data.error || "Error al aceptar el viaje");
+        }
+        throw new Error("Error de red al aceptar viaje");
+    }
+}
 
 export const TripService = {
     getTripData,
+    createTrip,
+    acceptTrip, // <--- ¡No olvides exportarla!
 };

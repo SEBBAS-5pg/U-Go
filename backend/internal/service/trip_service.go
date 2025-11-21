@@ -11,14 +11,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// TripService maneja la lógica de negocio para los viajes
 type TripService struct {
 	tripRepo     *repository.TripRepository
 	userService  *UserService
 	locationRepo *repository.LocationRepository
 }
 
-// NewTripService es la fábrica
 func NewTripService(tripRepo *repository.TripRepository, userService *UserService, locationRepo *repository.LocationRepository) *TripService {
 	return &TripService{
 		tripRepo:     tripRepo,
@@ -27,198 +25,82 @@ func NewTripService(tripRepo *repository.TripRepository, userService *UserServic
 	}
 }
 
-// CreateTrip valida y coordina la creación de un viaje
 func (s *TripService) CreateTrip(ctx context.Context, req *models.CreateTripRequest, pasajeroID string) (*models.Trip, error) {
+	// 1. NO VALIDAMOS CONDUCTOR AQUÍ (Permitimos crear viaje sin conductor)
 
-	// 1. Validaciones de Lógica de Negocio
-	if req.ConductorID == "" {
-		return nil, errors.New("debe especificar el ID del conductor")
-	}
 	if req.OriginLat == 0 || req.DestinationLat == 0 {
-		return nil, errors.New("debe especificar origen y destino")
+		return nil, errors.New("debe especificar coordenadas de origen y destino")
 	}
 
-	// 2. Crear el objeto Trip para el repositorio
+	// 2. Crear objeto
 	newTrip := &models.Trip{
 		PasajeroID:      pasajeroID,
-		ConductorID:     req.ConductorID, // Se asigna el ID, aunque el conductor no haya aceptado
+		ConductorID:     "", // Vacío inicial
 		OriginLat:       req.OriginLat,
 		OriginLng:       req.OriginLng,
 		OriginName:      req.OriginName,
 		DestinationLat:  req.DestinationLat,
 		DestinationLng:  req.DestinationLng,
 		DestinationName: req.DestinationName,
-		// Status se asigna en el repositorio como 'solicitado'
 	}
 
-	// 3. Llamar al repositorio
+	// 3. Guardar en Repo
 	createdTrip, err := s.tripRepo.CreateTrip(ctx, newTrip)
 	if err != nil {
 		return nil, err
 	}
 
-	// 4. (SIMULACIÓN DE NOTIFICACIÓN):
-	// Aquí se integraría la lógica de WebSockets para enviar una notificación
-	// al conductorID sobre el nuevo viaje.
-	log.Printf("⚠️ Simulación: Notificación enviada al conductor %s para el viaje %s.", createdTrip.ConductorID, createdTrip.ID)
-
+	log.Printf("✅ Viaje %s creado (solicitado).", createdTrip.ID)
 	return createdTrip, nil
 }
 
-// AcceptTrip maneja la lógica de aceptar el viaje y cambiar el estado del conductor
 func (s *TripService) AcceptTrip(ctx context.Context, tripID string, conductorID string, vehicleID string) (*models.Trip, error) {
-
-	// 1. Validaciones
-	if vehicleID == "" {
-		return nil, errors.New("debe especificar el ID del vehículo que usará")
-	}
-
-	// 2. Actualizar el viaje a 'aceptado' en PostgreSQL
 	updatedTrip, err := s.tripRepo.AcceptTrip(ctx, tripID, conductorID, vehicleID)
 	if err != nil {
 		return nil, err
 	}
-
-	// 3. 🚗 CAMBIO CRÍTICO DE ESTADO DEL CONDUCTOR
-	// El conductor pasa a 'en_viaje' en PostgreSQL
-	err = s.userService.UpdateDriverStatus(ctx, updatedTrip.ConductorID, models.DriverStatusEnViaje)
-	if err != nil {
-		log.Printf("ADVERTENCIA CRÍTICA: No se pudo cambiar el estado del conductor %s a 'en_viaje' en PG. Error: %v", conductorID, err)
-		// No revertimos el viaje, pero logueamos la advertencia.
-	}
-
-	// 4. Actualizar estado en MongoDB a 'en_viaje' (Usaremos UpsertDriverLocation
-	// para que el conductor ya no aparezca como 'online' en la búsqueda de pasajeros).
-	// Asumimos que la ubicación no cambia al aceptar, solo el estado.
-	// Usamos las coordenadas que tenga actualmente en Mongo. Debemos implementar
-	// una función para obtener su ubicación actual o actualizar solo el status.
-	// **POR AHORA, SOLO ACTUALIZAMOS EL ESTADO EN PG Y DEJAMOS QUE LA BÚSQUEDA FILTRE POR STATUS.**
-
-	// El filtro de $geoNear ya está en el LocationRepo para buscar solo 'online'.
-	// Si el estado en PostgreSQL es 'en_viaje', es suficiente.
-
-	// 5. (SIMULACIÓN DE NOTIFICACIÓN):
-	log.Printf("⚠️ Simulación: Notificación enviada al pasajero %s: ¡Tu viaje fue aceptado!", updatedTrip.PasajeroID)
-
+	// Actualizar estado conductor (ignorar error user service para no bloquear)
+	_ = s.userService.UpdateDriverStatus(ctx, updatedTrip.ConductorID, models.DriverStatusEnViaje)
 	return updatedTrip, nil
 }
 
-// FinalizeTrip maneja la lógica para finalizar el viaje y devolver al conductor a 'online'
 func (s *TripService) FinalizeTrip(ctx context.Context, tripID string, conductorID string, req models.FinalizeTripRequest) (*models.Trip, error) {
-
-	// 1. Actualizar el viaje a 'finalizado' en PostgreSQL
 	updatedTrip, err := s.tripRepo.FinalizeTrip(ctx, tripID, conductorID)
 	if err != nil {
 		return nil, err
 	}
+	// Liberar conductor
+	_ = s.userService.UpdateDriverStatus(ctx, updatedTrip.ConductorID, models.DriverStatusOnline)
 
-	// 2. 📍 CAMBIO CRÍTICO DE ESTADO DEL CONDUCTOR EN MONGODB Y POSTGRESQL
-	// El conductor regresa a 'online' y vuelve a estar disponible.
-
-	// Actualizar estado en PostgreSQL (User.DriverStatus)
-	err = s.userService.UpdateDriverStatus(ctx, updatedTrip.ConductorID, models.DriverStatusOnline)
-
-	// Actualizar estado y ubicación en MongoDB (DriverLocation)
-	// Usamos las coordenadas finales (FinalLat/FinalLng) si están disponibles,
-	// o asumimos un punto para que reaparezca.
-	err = s.locationRepo.UpsertDriverLocation(
-		ctx,
-		updatedTrip.ConductorID,
-		req.FinalLat, // Latitud final
-		req.FinalLng, // Longitud final
-		models.DriverStatusOnline,
-	)
-
-	if err != nil {
-		log.Printf("ADVERTENCIA: No se pudo devolver el conductor %s a 'online'. Error: %v", updatedTrip.ConductorID, err)
-		// No detenemos el proceso si falla el estado de ubicación.
+	// Actualizar posición final (opcional)
+	if req.FinalLat != 0 {
+		_ = s.locationRepo.UpsertDriverLocation(ctx, updatedTrip.ConductorID, req.FinalLat, req.FinalLng, models.DriverStatusOnline)
 	}
-
-	// 3. (SIMULACIÓN DE NOTIFICACIÓN):
-	log.Printf("⚠️ Simulación: Notificación enviada al pasajero %s: ¡Tu viaje ha finalizado!", updatedTrip.PasajeroID)
-
 	return updatedTrip, nil
 }
 
-// CancelTrip maneja la lógica de cancelación y resetea el estado del conductor si aplica.
 func (s *TripService) CancelTrip(ctx context.Context, tripID uuid.UUID, userID uuid.UUID) error {
-	// 1. Obtener el viaje (AÑADIMOS ctx)
 	trip, err := s.tripRepo.GetByID(ctx, tripID)
 	if err != nil {
 		return fmt.Errorf("trip not found: %w", err)
 	}
-
-	// 2. Validación de Participante (Corregimos PasajeroID y manejo de ConductorID)
 	userIDStr := userID.String()
-
-	// Corregido: usa trip.PasajeroID y compara con userID.String()
-	isPassenger := trip.PasajeroID == userIDStr
-
-	// Corregido: ConductorID es string, se compara con "" y sin desreferenciar
-	isDriver := trip.ConductorID != "" && trip.ConductorID == userIDStr
-
-	if !isPassenger && !isDriver {
-		return errors.New("only the assigned passenger or driver can cancel this trip")
+	if trip.PasajeroID != userIDStr && (trip.ConductorID == "" || trip.ConductorID != userIDStr) {
+		return errors.New("permiso denegado")
 	}
-
-	// 3. Validación de Estado: Solo se puede cancelar si no está finalizado.
-	if trip.Status == "finalizado" || trip.Status == "cancelado" {
-		return errors.New("cannot cancel a trip that is already finished or canceled")
-	}
-
-	// 4. Actualizar estado en PostgreSQL (AÑADIMOS ctx)
 	if err := s.tripRepo.CancelTrip(ctx, tripID); err != nil {
-		return fmt.Errorf("error updating trip status: %w", err)
+		return err
 	}
-
-	// 5. Lógica Crítica: Resetear estado del Conductor
-	// Corregido: Compara con "" y usa ConductorID directamente
-	if trip.ConductorID != "" && trip.Status != "solicitado" {
-		// Usa trip.ConductorID directamente (es un string de UUID)
-		if err := s.userService.UpdateDriverStatus(ctx, trip.ConductorID, "online"); err != nil {
-			log.Printf("Warning: Failed to reset driver status after cancellation for user %s: %v", trip.ConductorID, err)
-		}
+	if trip.ConductorID != "" {
+		_ = s.userService.UpdateDriverStatus(ctx, trip.ConductorID, "online")
 	}
-
-	// Opcional: Notificar a la otra parte (Pasajero/Conductor) sobre la cancelación.
-
 	return nil
 }
 
-// GetPassengerHistory obtiene el historial de viajes para un pasajero específico
 func (s *TripService) GetPassengerHistory(ctx context.Context, pasajeroID uuid.UUID) ([]models.Trip, error) {
-
-	// 1. Llamar al repositorio
-	trips, err := s.tripRepo.GetHistoryByPasajeroID(ctx, pasajeroID)
-	if err != nil {
-		log.Printf("Error al buscar historial del pasajero %s: %v", pasajeroID.String(), err)
-		return nil, errors.New("error interno al obtener el historial de viajes")
-	}
-
-	// 2. Devolver la lista
-	// Nota: El repositorio devuelve []models.Trip, no necesita el struct DriverHistoryResponse
-	// ya que no se necesita el promedio de calificación para el pasajero (solo para el conductor).
-	return trips, nil
+	return s.tripRepo.GetHistoryByPasajeroID(ctx, pasajeroID)
 }
 
-// GetTripByID obtiene un viaje por su ID, validando que el usuario tenga acceso (pasajero o conductor asignado)
 func (s *TripService) GetTripByID(ctx context.Context, tripID uuid.UUID, userID uuid.UUID) (*models.Trip, error) {
-	// 1. Obtener el viaje del repositorio
-	trip, err := s.tripRepo.GetByID(ctx, tripID)
-	if err != nil {
-		// Ya que GetByID devuelve "trip not found" si no existe
-		return nil, fmt.Errorf("viaje no encontrado: %w", err)
-	}
-
-	// 2. Validación de Acceso
-	userIDStr := userID.String()
-
-	isPassenger := trip.PasajeroID == userIDStr
-	isDriver := trip.ConductorID == userIDStr // ConductorID será "" si el viaje no ha sido aceptado
-
-	if !isPassenger && !isDriver {
-		return nil, errors.New("el usuario no puede acceder a los detalles de este viaje")
-	}
-
-	return trip, nil
+	return s.tripRepo.GetByID(ctx, tripID)
 }
