@@ -190,3 +190,78 @@ func (h *TripHandler) CancelTrip(w http.ResponseWriter, r *http.Request) {
 	// CORRECCIÓN 5: Usar RespondWithJSON directamente
 	RespondWithJSON(w, http.StatusOK, map[string]string{"message": "Trip successfully canceled", "status": "cancelado"})
 }
+
+// GetPassengerHistory maneja el [GET] /api/v1/passenger/history
+func (h *TripHandler) GetPassengerHistory(w http.ResponseWriter, r *http.Request) {
+
+	// 1. Obtener el UserID (PasajeroID) del contexto
+	userIDStr, ok := r.Context().Value(models.ContextUserIDKey).(string)
+	if !ok || userIDStr == "" {
+		RespondWithError(w, http.StatusUnauthorized, "No autorizado o ID de pasajero no encontrado")
+		return
+	}
+
+	// 2. Parsear el ID a UUID
+	pasajeroID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "ID de usuario malformado")
+		return
+	}
+
+	// 3. Llamar al servicio
+	history, err := h.tripService.GetPassengerHistory(r.Context(), pasajeroID)
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// 4. Respuesta exitosa
+	RespondWithJSON(w, http.StatusOK, history)
+}
+
+// GetTripByID maneja el [GET] /api/v1/trips/{tripId}
+func (h *TripHandler) GetTripByID(w http.ResponseWriter, r *http.Request) {
+
+	// 1. Obtener el tripID de la URL
+	vars := mux.Vars(r)
+	tripIDStr := vars["tripId"]
+
+	tripID, err := uuid.Parse(tripIDStr)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Formato de ID de viaje inválido")
+		return
+	}
+
+	// 2. Obtener el userID del contexto (para verificación de acceso)
+	userIDStr, ok := r.Context().Value(models.ContextUserIDKey).(string)
+	if !ok || userIDStr == "" {
+		RespondWithError(w, http.StatusUnauthorized, "No autorizado o ID de usuario no encontrado")
+		return
+	}
+
+	// Convertir el ID de usuario a UUID para el servicio
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		RespondWithError(w, http.StatusUnauthorized, "Formato de ID de usuario inválido en contexto")
+		return
+	}
+
+	// 3. Llamar al servicio
+	trip, err := h.tripService.GetTripByID(r.Context(), tripID, userID)
+	if err != nil {
+		// El servicio maneja errores como "No encontrado" o "Acceso denegado"
+		if strings.Contains(err.Error(), "not found") {
+			RespondWithError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if strings.Contains(err.Error(), "no puede") {
+			RespondWithError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		RespondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// 4. Respuesta de éxito
+	RespondWithJSON(w, http.StatusOK, trip)
+}

@@ -184,3 +184,41 @@ func (s *TripService) CancelTrip(ctx context.Context, tripID uuid.UUID, userID u
 
 	return nil
 }
+
+// GetPassengerHistory obtiene el historial de viajes para un pasajero específico
+func (s *TripService) GetPassengerHistory(ctx context.Context, pasajeroID uuid.UUID) ([]models.Trip, error) {
+
+	// 1. Llamar al repositorio
+	trips, err := s.tripRepo.GetHistoryByPasajeroID(ctx, pasajeroID)
+	if err != nil {
+		log.Printf("Error al buscar historial del pasajero %s: %v", pasajeroID.String(), err)
+		return nil, errors.New("error interno al obtener el historial de viajes")
+	}
+
+	// 2. Devolver la lista
+	// Nota: El repositorio devuelve []models.Trip, no necesita el struct DriverHistoryResponse
+	// ya que no se necesita el promedio de calificación para el pasajero (solo para el conductor).
+	return trips, nil
+}
+
+// GetTripByID obtiene un viaje por su ID, validando que el usuario tenga acceso (pasajero o conductor asignado)
+func (s *TripService) GetTripByID(ctx context.Context, tripID uuid.UUID, userID uuid.UUID) (*models.Trip, error) {
+	// 1. Obtener el viaje del repositorio
+	trip, err := s.tripRepo.GetByID(ctx, tripID)
+	if err != nil {
+		// Ya que GetByID devuelve "trip not found" si no existe
+		return nil, fmt.Errorf("viaje no encontrado: %w", err)
+	}
+
+	// 2. Validación de Acceso
+	userIDStr := userID.String()
+
+	isPassenger := trip.PasajeroID == userIDStr
+	isDriver := trip.ConductorID == userIDStr // ConductorID será "" si el viaje no ha sido aceptado
+
+	if !isPassenger && !isDriver {
+		return nil, errors.New("el usuario no puede acceder a los detalles de este viaje")
+	}
+
+	return trip, nil
+}

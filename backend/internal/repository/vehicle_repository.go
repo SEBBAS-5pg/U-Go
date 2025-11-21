@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
 
@@ -132,4 +133,37 @@ func (r *VehicleRepository) UpdateVehicleImageURL(ctx context.Context, vehicleID
 
 	log.Printf("✅ Imagen de vehículo actualizada para ID: %s. URL: %s", vehicleID, imageURL)
 	return nil
+}
+
+// GetByID recupera un vehículo específico por su ID
+func (r *VehicleRepository) GetByID(ctx context.Context, vehicleID string) (*models.Vehicle, error) {
+	var v models.Vehicle
+
+	query := `
+        SELECT 
+            id, conductor_id, plate, model, color, status, vehicle_image_url, created_at
+        FROM vehicles
+        WHERE id = $1
+    `
+
+	err := r.DB.QueryRowContext(ctx, query, vehicleID).Scan(
+		&v.ID,
+		&v.ConductorID,
+		&v.Plate,
+		&v.Model,
+		&v.Color,
+		&v.Status,
+		&v.VehicleImageURL,
+		&v.CreatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("vehículo con ID %s no encontrado", vehicleID) // Usamos fmt.Errorf para devolver un error descriptivo
+		}
+		log.Printf("Error al buscar vehículo por ID %s: %v", vehicleID, err)
+		return nil, err
+	}
+
+	return &v, nil
 }

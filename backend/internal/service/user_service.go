@@ -11,6 +11,7 @@ import (
 
 	"github.com/SEBBAS-5pg/U-Go/backend/internal/models"
 	"github.com/SEBBAS-5pg/U-Go/backend/internal/repository"
+	"github.com/google/uuid"
 )
 
 // UserService maneja la logica de negocio para los perfiles de usuario
@@ -19,18 +20,24 @@ type UserService struct {
 	userRepo     *repository.UserRepository
 	locationRepo *repository.LocationRepository
 	storageRepo  *StorageService
+	tripRepo     *repository.TripRepository
+	ratingRepo   *repository.RatingRepository
 }
 
 // NewUserService es la "fábrica"
 func NewUserService(
 	userRepo *repository.UserRepository,
 	locationRepo *repository.LocationRepository,
-	storageRepo *StorageService, // ¡Ahora recibe 3 argumentos!
+	storageRepo *StorageService,
+	tripRepo *repository.TripRepository,
+	ratingRepo *repository.RatingRepository,
 ) *UserService {
 	return &UserService{
 		userRepo:     userRepo,
 		locationRepo: locationRepo,
-		storageRepo:  storageRepo, // Asignación correcta
+		storageRepo:  storageRepo,
+		tripRepo:     tripRepo,
+		ratingRepo:   ratingRepo,
 	}
 }
 
@@ -186,6 +193,95 @@ func (s *UserService) UpdateDriverStatus(ctx context.Context, userID string, sta
 			return errors.New("Conductor no encontrado")
 		}
 		return errors.New("No se pudo actualizar el estado del conductor")
+	}
+
+	return nil
+}
+
+// GetDriverHistory compila el historial de viajes y calificaciones para un conductor.
+func (s *UserService) GetDriverHistory(ctx context.Context, driverID uuid.UUID) (*models.DriverHistoryResponse, error) {
+	// 1. Obtener información básica del conductor (para AverageRating y FullName)
+	user, err := s.userRepo.GetByID(ctx, driverID.String())
+	if err != nil {
+		return nil, fmt.Errorf("conductor no encontrado: %w", err)
+	}
+
+	// 2. Obtener historial de viajes
+	trips, err := s.tripRepo.GetHistoryByDriverID(ctx, driverID)
+	if err != nil {
+		// Loguear pero no fallar si no hay viajes (ej. devuelve un slice vacío)
+		log.Printf("Advertencia: No se encontraron viajes para el conductor %s: %v", driverID, err)
+	}
+
+	// 3. Obtener calificaciones recibidas
+	ratings, err := s.ratingRepo.GetReceivedRatingsByDriverID(ctx, driverID)
+	if err != nil {
+		// Loguear pero no fallar si no hay calificaciones
+		log.Printf("Advertencia: No se encontraron calificaciones para el conductor %s: %v", driverID, err)
+	}
+
+	// 4. Compilar la respuesta
+	response := &models.DriverHistoryResponse{
+		UserID:          user.ID,
+		FullName:        user.FullName,
+		AverageRating:   user.AverageRating,
+		Trips:           trips,
+		ReceivedRatings: ratings,
+	}
+
+	return response, nil
+}
+
+// GetProfileImageURL obtiene la URL (o ID de Mongo) de la imagen de perfil del usuario.
+func (s *UserService) GetProfileImageURL(ctx context.Context, userID string) (string, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", errors.New("usuario no encontrado")
+		}
+		return "", fmt.Errorf("error al buscar usuario: %w", err)
+	}
+
+	// 1. Verificar si el puntero es NULO (base de datos dice NULL)
+	if user.ProfileImageURL == nil || *user.ProfileImageURL == "" {
+		// 2. Si es NULO o la cadena dentro es vacía, no hay imagen.
+		return "", errors.New("imagen de perfil no configurada")
+	}
+
+	// 3. Desreferenciar el puntero para devolver el valor STRING
+	return *user.ProfileImageURL, nil
+}
+
+// / DeleteProfileImage elimina la imagen de perfil del storage y resetea la URL en PostgreSQL.
+func (s *UserService) DeleteProfileImage(ctx context.Context, userID string) error {
+	// 1. Obtener la URL/ID actual
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return errors.New("usuario no encontrado")
+	}
+
+	// 2. Intentar eliminar el archivo de Storage (si existe y no es NULO)
+	if user.ProfileImageURL != nil && *user.ProfileImageURL != "" {
+		// Desreferenciamos para obtener el ID de Mongo
+		imageID := *user.ProfileImageURL
+
+		// Llamar a la eliminación del archivo
+		err = s.storageRepo.DeleteFile(ctx, imageID)
+		if err != nil {
+			log.Printf("Advertencia: Falló la eliminación del archivo GridFS para %s: %v", userID, err)
+		}
+	}
+
+	// 3. Actualizar la URL a "" en PostgreSQL
+	// Nota: El repositorio debe aceptar "" (string vacío) para setear NULL en PostgreSQL
+	// o nil para punteros. Asumiremos que el repositorio lo maneja.
+	err = s.userRepo.UpdateProfileImageURL(ctx, userID, "")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return errors.New("usuario no encontrado para actualizar la URL")
+		}
+		log.Printf("Error al actualizar URL en Postgres (service): %v", err)
+		return errors.New("no se pudo eliminar la asociación de la imagen del perfil")
 	}
 
 	return nil

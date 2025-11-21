@@ -32,7 +32,7 @@ func (s *VehicleService) RegisterVehicle(ctx context.Context, conductorID string
 
 	// --- Validación de Lógica de Negocio ---
 	if plate == "" || model == "" || color == "" {
-		return nil, errors.New("Los campos Plate, Model y Color son obligatorios")
+		return nil, errors.New("los campos Plate, Model y Color son obligatorios")
 	}
 
 	// 1. Crear el objeto Vehicle a registrar
@@ -50,7 +50,7 @@ func (s *VehicleService) RegisterVehicle(ctx context.Context, conductorID string
 		// Asumimos que si hay un error de DB (ej. placa duplicada)
 		// el error se logueó en el repositorio, aquí devolvemos un error genérico
 		log.Printf("Error al registrar vehículo en DB (service): %v", err)
-		return nil, errors.New("No se pudo registrar el vehículo")
+		return nil, errors.New("no se pudo registrar el vehículo")
 	}
 
 	return registeredVehicle, nil
@@ -65,7 +65,7 @@ func (s *VehicleService) GetVehiclesByConductor(ctx context.Context, conductorID
 	vehicles, err := s.vehicleRepo.GetVehiclesByConductorID(ctx, conductorID)
 	if err != nil {
 		log.Printf("Error al obtener vehículos (service): %v", err)
-		return nil, errors.New("No se pudo obtener la lista de vehículos")
+		return nil, errors.New("no se pudo obtener la lista de vehículos")
 	}
 
 	// Lógica de negocio adicional aquí, si fuera necesaria (ej. filtrar por estado)
@@ -84,7 +84,7 @@ func (s *VehicleService) UpdateVehicleImage(ctx context.Context, vehicleID strin
 	fileID, err := s.storageRepo.UploadFile(ctx, file, uniqueFilename)
 	if err != nil {
 		log.Printf("Error al subir archivo de vehículo a storage (service): %v", err)
-		return "", errors.New("No se pudo guardar el archivo de la imagen del vehículo")
+		return "", errors.New("no se pudo guardar el archivo de la imagen del vehículo")
 	}
 
 	// 3. Crear la URL pública (en este caso, es el ID de Mongo)
@@ -95,9 +95,47 @@ func (s *VehicleService) UpdateVehicleImage(ctx context.Context, vehicleID strin
 	if err != nil {
 		log.Printf("Error al actualizar URL en Postgres (service): %v", err)
 		// En un sistema real, aquí se borraría el archivo de Mongo si falla Postgres.
-		return "", errors.New("No se pudo asociar la imagen al vehículo")
+		return "", errors.New("no se pudo asociar la imagen al vehículo")
 	}
 
 	// 5. Devolver la URL/ID
 	return imageURL, nil
+}
+
+// GetVehicleImageURL obtiene la URL (o ID de Mongo) de la imagen de un vehículo.
+func (s *VehicleService) GetVehicleImageURL(ctx context.Context, vehicleID string) (string, error) {
+	vehicle, err := s.vehicleRepo.GetByID(ctx, vehicleID)
+	if err != nil {
+		return "", errors.New("vehículo no encontrado")
+	}
+	if *vehicle.VehicleImageURL == "" {
+		return "", errors.New("imagen del vehículo no configurada")
+	}
+	return *vehicle.VehicleImageURL, nil
+}
+
+// DeleteVehicleImage elimina la imagen del vehículo del storage y resetea la URL en PostgreSQL.
+func (s *VehicleService) DeleteVehicleImage(ctx context.Context, vehicleID string) error {
+	// 1. Obtener la URL/ID actual
+	vehicle, err := s.vehicleRepo.GetByID(ctx, vehicleID)
+	if err != nil {
+		return errors.New("vehículo no encontrado")
+	}
+
+	if *vehicle.VehicleImageURL != "" {
+		// 2. Eliminar el archivo del Storage (MongoDB GridFS)
+		err = s.storageRepo.DeleteFile(ctx, *vehicle.VehicleImageURL)
+		if err != nil {
+			log.Printf("Advertencia: Falló la eliminación del archivo %s de MongoDB: %v", *vehicle.VehicleImageURL, err)
+		}
+	}
+
+	// 3. Actualizar la URL a "" en PostgreSQL
+	err = s.vehicleRepo.UpdateVehicleImageURL(ctx, vehicleID, "")
+	if err != nil {
+		log.Printf("Error al actualizar URL en Postgres (service): %v", err)
+		return errors.New("no se pudo eliminar la asociación de la imagen del vehículo")
+	}
+
+	return nil
 }

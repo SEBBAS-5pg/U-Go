@@ -7,6 +7,7 @@ import (
 
 	"github.com/SEBBAS-5pg/U-Go/backend/internal/models"
 	"github.com/SEBBAS-5pg/U-Go/backend/internal/service"
+	"github.com/google/uuid"
 )
 
 // UserHandler maneja las peticiones HTTP para /users
@@ -83,7 +84,7 @@ func writeJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 // UploadProfileImage es el handler para POST /users/me/image
 func (h *UserHandler) UploadProfileImage(w http.ResponseWriter, r *http.Request) {
 	// 1. Extraer el userID del contexto
-	userID, ok := r.Context().Value(service.ContextKeyUserID).(string)
+	userID, ok := r.Context().Value(models.ContextUserIDKey).(string)
 	if !ok {
 		writeJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": "Error interno del servidor"})
 		return
@@ -140,4 +141,71 @@ func (h *VehicleHandler) GetVehicles(w http.ResponseWriter, r *http.Request) {
 	// 3. Devolver la respuesta de éxito
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(vehicles)
+}
+
+// GetDriverHistory es el handler para GET /api/v1/driver/history
+// Muestra el historial de viajes y calificaciones del conductor
+func (h *UserHandler) GetDriverHistory(w http.ResponseWriter, r *http.Request) {
+	// 1. Obtener el userID del contexto (middleware de autenticación)
+	userIDStr, ok := r.Context().Value(models.ContextUserIDKey).(string)
+	if !ok || userIDStr == "" {
+		// Usa la función auxiliar de tu archivo
+		writeJSONResponse(w, http.StatusUnauthorized, map[string]string{"error": "Token de usuario inválido o ausente"})
+		return
+	}
+
+	// 2. Parsear el ID a UUID (para llamar al servicio)
+	driverID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "ID de usuario malformado"})
+		return
+	}
+
+	// 3. Llamar al servicio (que ya implementaste)
+	history, err := h.userService.GetDriverHistory(r.Context(), driverID)
+	if err != nil {
+		// El servicio maneja errores, aquí solo respondemos con 500
+		log.Printf("Error al obtener el historial del conductor: %v", err)
+		writeJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": "Error interno al obtener historial"})
+		return
+	}
+
+	// 4. Respuesta exitosa
+	writeJSONResponse(w, http.StatusOK, history)
+}
+
+// GetProfileImage maneja GET /users/me/image
+func (h *UserHandler) GetProfileImage(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(models.ContextUserIDKey).(string)
+	if !ok {
+		writeJSONResponse(w, http.StatusUnauthorized, map[string]string{"error": "No autorizado"})
+		return
+	}
+
+	imageURL, err := h.userService.GetProfileImageURL(r.Context(), userID)
+	if err != nil {
+		// Si el servicio dice que no está configurada la imagen
+		writeJSONResponse(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+
+	writeJSONResponse(w, http.StatusOK, map[string]string{"profile_image_url": imageURL})
+}
+
+// DeleteProfileImage maneja DELETE /users/me/image
+func (h *UserHandler) DeleteProfileImage(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(models.ContextUserIDKey).(string)
+	if !ok {
+		writeJSONResponse(w, http.StatusUnauthorized, map[string]string{"error": "No autorizado"})
+		return
+	}
+
+	err := h.userService.DeleteProfileImage(r.Context(), userID)
+	if err != nil {
+		// Manejo de error general (422 o 500)
+		writeJSONResponse(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+		return
+	}
+
+	writeJSONResponse(w, http.StatusOK, map[string]string{"message": "Imagen de perfil eliminada con éxito"})
 }

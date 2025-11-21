@@ -75,7 +75,7 @@ func main() {
 	// b. "cerebro" (service) - Necesia el repository
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
 	storageService := service.NewStorageService(mongoDB)
-	userService := service.NewUserService(userRepo, locationRepo, storageService)
+	userService := service.NewUserService(userRepo, locationRepo, storageService, tripRepo, ratingRepo)
 	vehicleService := service.NewVehicleService(vehicleRepo, storageService)
 	tripService := service.NewTripService(tripRepo, userService, locationRepo)
 	ratingService := service.NewRatingService(ratingRepo, tripRepo, userRepo)
@@ -127,20 +127,29 @@ func main() {
 	protectRoutes.HandleFunc("/users/me/image", userHandler.UploadProfileImage).Methods("POST")
 	// POST de Vehiculos
 	protectRoutes.HandleFunc("/vehicles", vehicleHandler.RegisterVehicle).Methods("POST")
-	// GET /api/v1/vehicles
-
+	protectRoutes.HandleFunc("/users/me/image", userHandler.GetProfileImage).Methods("GET")
+	protectRoutes.HandleFunc("/users/me/image", userHandler.DeleteProfileImage).Methods("DELETE")
+	protectRoutes.HandleFunc("/vehicles/{vehicleId}/image", vehicleHandler.GetVehicleImage).Methods("GET")
+	protectRoutes.HandleFunc("/vehicles/{vehicleId}/image", vehicleHandler.DeleteVehicleImage).Methods("DELETE")
 	// vehicles
+	// GET /api/v1/vehicles
 	protectRoutes.HandleFunc("/vehicles", vehicleHandler.GetVehicles).Methods("GET")
 	protectRoutes.HandleFunc("/driver/location", driverHandler.UpdateLocation).Methods("POST")
 	// GET /
 	protectRoutes.HandleFunc("/passenger/drivers", passengerHandler.FindNearbyDrivers).Methods("GET").Queries("lat", "{lat}", "lng", "{lng}")
+	// NUEVA RUTA PARA EL HISTORIAL DEL PASAJERO (T-14)
+	protectRoutes.HandleFunc("/passenger/history", tripHandler.GetPassengerHistory).Methods("GET")
 
+	// NUEVA RUTA PARA EL HISTORIAL (HU-09)
+	protectRoutes.HandleFunc("/driver/history", userHandler.GetDriverHistory).Methods("GET")
 	// POST /api/v1/vehicles/{vehicleId}/image
 	protectRoutes.HandleFunc("/vehicles/{vehicleId}/image", vehicleHandler.UploadVehicleImage).Methods("POST")
 
 	// --- Endpoints de Pasajero
 	// POST /api/v1/trips (Solicitar un nuevo viaje)
 	protectRoutes.HandleFunc("/trips", tripHandler.CreateTrip).Methods("POST")
+	// GET /api/v1/trips/{tripId}
+	protectRoutes.HandleFunc("/trips/{tripId}", tripHandler.GetTripByID).Methods("GET")
 	// POST /api/v1/trips/{tripId}/accept
 	protectRoutes.HandleFunc("/trips/{tripId}/accept", tripHandler.AcceptTrip).Methods("POST")
 	// POST /api/v1/trips/{tripId}/cancel

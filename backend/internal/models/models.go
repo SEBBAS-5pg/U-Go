@@ -136,3 +136,16 @@ type CreateRatingRequest struct {
 	Rating  int    `json:"rating" validate:"required,min=1,max=5"` // Usamos Rating, consistente con el modelo y el JSON
 	Comment string `json:"comment"`
 }
+
+// DriverHistoryResponse estructura el historial del conductor
+type DriverHistoryResponse struct {
+	UserID        string  `json:"user_id"`
+	FullName      string  `json:"full_name"`
+	AverageRating float64 `json:"average_rating"` // Del user
+
+	// Lista de viajes
+	Trips []Trip `json:"trips"` // Asumo que Trip ya está definido
+
+	// Lista de calificaciones que ha recibido
+	ReceivedRatings []Rating `json:"received_ratings"` // Asumo que Rating ya está definido
+}

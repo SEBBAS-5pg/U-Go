@@ -5,9 +5,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/SEBBAS-5pg/U-Go/backend/internal/models"
+	"github.com/google/uuid"
 )
 
 // RatingRepository maneja la interacción con la tabla 'ratings'
@@ -61,4 +63,39 @@ func (r *RatingRepository) CreateRating(ctx context.Context, rating *models.Rati
 	}
 
 	return rating, nil
+}
+
+// GetReceivedRatingsByDriverID obtiene todas las calificaciones donde el usuario es el RatedID (el calificado)
+func (r *RatingRepository) GetReceivedRatingsByDriverID(ctx context.Context, driverID uuid.UUID) ([]models.Rating, error) {
+	query := `
+		SELECT 
+			id, trip_id, rater_id, rated_id, rating, comment, created_at
+		FROM ratings
+		WHERE rated_id = $1
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, driverID.String())
+	if err != nil {
+		return nil, fmt.Errorf("error al consultar ratings recibidos: %w", err)
+	}
+	defer rows.Close()
+
+	var ratings []models.Rating
+	for rows.Next() {
+		var ra models.Rating
+		err := rows.Scan(
+			&ra.ID, &ra.TripID, &ra.RaterID, &ra.RatedID, &ra.Rating, &ra.Comment, &ra.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error al escanear ratings: %w", err)
+		}
+		ratings = append(ratings, ra)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error en la iteración de filas de ratings: %w", err)
+	}
+
+	return ratings, nil
 }

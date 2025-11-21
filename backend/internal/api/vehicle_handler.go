@@ -106,3 +106,37 @@ func (h *VehicleHandler) UploadVehicleImage(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
+
+// GetVehicleImage maneja GET /vehicles/{vehicleId}/image
+func (h *VehicleHandler) GetVehicleImage(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	vehicleID := vars["vehicleId"]
+
+	imageURL, err := h.vehicleService.GetVehicleImageURL(r.Context(), vehicleID)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	response := map[string]string{"vehicle_image_url": imageURL}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// DeleteVehicleImage maneja DELETE /vehicles/{vehicleId}/image
+func (h *VehicleHandler) DeleteVehicleImage(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	vehicleID := vars["vehicleId"]
+
+	err := h.vehicleService.DeleteVehicleImage(r.Context(), vehicleID)
+	if err != nil {
+		// 422 si el vehículo no existe o hay un error de lógica
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Imagen del vehículo eliminada con éxito"})
+}

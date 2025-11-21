@@ -292,3 +292,127 @@ func (r *TripRepository) GetByID(ctx context.Context, tripID uuid.UUID) (*models
 
 	return &trip, nil
 }
+
+// GetHistoryByDriverID obtiene todos los viajes asociados a un conductor (ya sean finalizados o cancelados)
+func (r *TripRepository) GetHistoryByDriverID(ctx context.Context, driverID uuid.UUID) ([]models.Trip, error) {
+	// La query es correcta, selecciona todos los campos
+	query := `
+        SELECT 
+            id, pasajero_id, conductor_id, vehicle_id, status, 
+            origin_lat, origin_lng, origin_name, destination_lat, 
+            destination_lng, destination_name, created_at, started_at, 
+            completed_at
+        FROM trips 
+        WHERE conductor_id = $1
+        ORDER BY created_at DESC
+    `
+
+	rows, err := r.db.QueryContext(ctx, query, driverID.String())
+	if err != nil {
+		return nil, fmt.Errorf("error al consultar el historial de viajes del conductor: %w", err)
+	}
+	defer rows.Close()
+
+	var trips []models.Trip
+	for rows.Next() {
+		var t models.Trip
+		// Variables temporales para campos potencialmente NULL en DB
+		var conductorID sql.NullString
+		var vehicleID sql.NullString
+		var startedAt, completedAt sql.NullTime
+
+		err := rows.Scan(
+			&t.ID, &t.PasajeroID, &conductorID, &vehicleID, &t.Status, // Usar temporales aquí
+			&t.OriginLat, &t.OriginLng, &t.OriginName, &t.DestinationLat,
+			&t.DestinationLng, &t.DestinationName, &t.CreatedAt, &startedAt, // Usar temporales aquí
+			&completedAt, // Usar temporales aquí
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error al escanear los viajes del conductor: %w", err)
+		}
+
+		// Asignación de valores (Manejo de NULLs)
+		if conductorID.Valid {
+			t.ConductorID = conductorID.String
+		}
+		if vehicleID.Valid {
+			t.VehicleID = vehicleID.String
+		}
+		if startedAt.Valid {
+			t.StartedAt = &startedAt.Time
+		}
+		if completedAt.Valid {
+			t.CompletedAt = &completedAt.Time
+		}
+
+		trips = append(trips, t)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error en la iteración de filas de viajes: %w", err)
+	}
+
+	return trips, nil
+}
+
+// GetHistoryByPasajeroID obtiene todos los viajes asociados a un pasajero
+func (r *TripRepository) GetHistoryByPasajeroID(ctx context.Context, pasajeroID uuid.UUID) ([]models.Trip, error) {
+	// Selecciona todos los viajes donde pasajero_id sea el ID proporcionado
+	query := `
+        SELECT 
+            id, pasajero_id, conductor_id, vehicle_id, status, 
+            origin_lat, origin_lng, origin_name, destination_lat, 
+            destination_lng, destination_name, created_at, started_at, 
+            completed_at
+        FROM trips 
+        WHERE pasajero_id = $1
+        ORDER BY created_at DESC
+    `
+
+	rows, err := r.db.QueryContext(ctx, query, pasajeroID.String())
+	if err != nil {
+		return nil, fmt.Errorf("error al consultar el historial de viajes del pasajero: %w", err)
+	}
+	defer rows.Close()
+
+	var trips []models.Trip
+	for rows.Next() {
+		var t models.Trip
+		// Variables temporales para campos potencialmente NULL en DB
+		var conductorID sql.NullString
+		var vehicleID sql.NullString
+		var startedAt, completedAt sql.NullTime
+
+		err := rows.Scan(
+			&t.ID, &t.PasajeroID, &conductorID, &vehicleID, &t.Status, // Usar temporales aquí
+			&t.OriginLat, &t.OriginLng, &t.OriginName, &t.DestinationLat,
+			&t.DestinationLng, &t.DestinationName, &t.CreatedAt, &startedAt, // Usar temporales aquí
+			&completedAt, // Usar temporales aquí
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error al escanear los viajes del pasajero: %w", err)
+		}
+
+		// Asignación de valores (Manejo de NULLs)
+		if conductorID.Valid {
+			t.ConductorID = conductorID.String
+		}
+		if vehicleID.Valid {
+			t.VehicleID = vehicleID.String
+		}
+		if startedAt.Valid {
+			t.StartedAt = &startedAt.Time
+		}
+		if completedAt.Valid {
+			t.CompletedAt = &completedAt.Time
+		}
+
+		trips = append(trips, t)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error en la iteración de filas de viajes: %w", err)
+	}
+
+	return trips, nil
+}
