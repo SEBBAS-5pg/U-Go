@@ -1,0 +1,38 @@
+/* 1. Importar Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 2. Paleta de Colores Original (Limpia) */
+:root {
+  /** Color Primario (Verde U-Go #CCFF33) **/
+  --ion-color-primary: #CCFF33;
+  --ion-color-primary-rgb: 204, 255, 51;
+  --ion-color-primary-contrast: #000000; /* Texto negro para leer bien sobre el verde */
+  --ion-color-primary-contrast-rgb: 0, 0, 0;
+  --ion-color-primary-shade: #b4e02d;
+  --ion-color-primary-tint: #d1ff47;
+
+  /** Color Secundario (Gris Oscuro / Negro Suave) **/
+  --ion-color-secondary: #3dc2ff; /* O el azul que tenías antes si prefieres */
+  --ion-color-secondary-rgb: 61, 194, 255;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-contrast-rgb: 255, 255, 255;
+  --ion-color-secondary-shade: #36abe0;
+  --ion-color-secondary-tint: #50c8ff;
+
+  /** Colores de Estado (Estándar Ionic) **/
+  --ion-color-tertiary: #5260ff;
+  --ion-color-success: #2dd36f;
+  --ion-color-warning: #ffc409;
+  --ion-color-danger: #eb445a;
+  --ion-color-medium: #92949c;
+  --ion-color-light: #f4f5f8;
+
+  /** Fondos y Textos (Estándar) **/
+  --ion-background-color: #ffffff;
+  --ion-text-color: #000000;
+}
+
+/* SIN estilos extraños para botones o cards. 
+   Dejamos que Ionic maneje la apariencia nativa (Material Design / iOS) */

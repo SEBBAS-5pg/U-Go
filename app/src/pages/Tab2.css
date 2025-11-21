@@ -1,0 +1,28 @@
+/* Estilos Tab 2 (Restaurados) */
+
+/* Caja de Copiar ID */
+.id-copy-box {
+    background-color: #f4f5f8; /* Gris claro Ionic */
+    border: 1px solid var(--ion-color-medium);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.id-copy-box ion-input {
+    font-family: monospace;
+    font-weight: bold;
+    --padding-start: 10px;
+}
+
+/* Contenedor de Mapa (Ajuste de altura) */
+.map-container {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* Textos de estado */
+.status-text {
+    font-weight: 500;
+    color: var(--ion-color-dark);
+}

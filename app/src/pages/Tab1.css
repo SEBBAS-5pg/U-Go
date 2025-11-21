@@ -1,0 +1,55 @@
+/* Estilos Tab 1 (Restaurados) */
+
+/* Tarjeta GPS */
+.gps-card {
+    border-left: 5px solid var(--ion-color-secondary);
+    /* Sin fondos negros ni letras neón */
+}
+
+.gps-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2em;
+}
+
+.coords-display {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background-color: #f9f9f9; /* Fondo gris muy claro estándar */
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.coord-item {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 4px;
+}
+
+.coord-item .label {
+    font-weight: 600;
+    color: var(--ion-color-medium); /* Gris medio legible */
+}
+
+.coord-item .value {
+    font-family: monospace;
+    font-size: 1.1em;
+    color: var(--ion-color-dark); /* Negro estándar */
+}
+
+/* Tracking Cards */
+.tracking-card {
+    margin-top: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-success { border: 2px solid var(--ion-color-success); }
+.card-danger { border: 2px solid var(--ion-color-danger); }
+
+/* Input normal */
+ion-item {
+    --background: transparent;
+}
